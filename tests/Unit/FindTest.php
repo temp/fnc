@@ -19,6 +19,8 @@ final class FindTest extends TestCase
 
     public function testNotFound(): void
     {
-        $this->assertNull(find(static fn ($v) => $v > 5, [1, 2]));
+        $greaterThanFive = static fn (int $v): bool => $v > 5;
+
+        $this->assertNull(find($greaterThanFive, [1, 2]));
     }
 }

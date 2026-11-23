@@ -22,34 +22,12 @@ final class PropTest extends TestCase
         $this->assertSame('bar', $result);
     }
 
-    public function testCurriedArrayValue(): void
-    {
-        $data = ['foo' => 'bar'];
-        $prop = prop('foo');
-
-        $result = $prop($data);
-
-        $this->assertSame('bar', $result);
-    }
-
     public function testObjectValue(): void
     {
         $data = new stdClass();
         $data->foo = 'bar';
 
         $result = prop('foo', $data);
-
-        $this->assertSame('bar', $result);
-    }
-
-    public function testCurriedObjectValue(): void
-    {
-        $data = new stdClass();
-        $data->foo = 'bar';
-
-        $prop = prop('foo');
-
-        $result = $prop($data);
 
         $this->assertSame('bar', $result);
     }

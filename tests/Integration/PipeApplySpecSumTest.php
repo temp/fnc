@@ -24,11 +24,11 @@ final class PipeApplySpecSumTest extends TestCase
 
         $fn = pipe(
             applySpec([
-                prop('a'),
-                prop('b'),
-                prop('c'),
+                prop('a', ?),
+                prop('b', ?),
+                prop('c', ?),
             ]),
-            sum(),
+            sum(...),
         );
 
         $result = $fn($data);

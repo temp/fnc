@@ -49,15 +49,6 @@ final class DivideTest extends TestCase
         $this->assertSame(INF, $result);
     }
 
-    public function testCurriedDivide(): void
-    {
-        $identity = divide(12);
-
-        $result = $identity(3);
-
-        $this->assertSame(4, $result);
-    }
-
     public function testNegativeByZero(): void
     {
         $this->assertSame(-INF, divide(-12, 0));

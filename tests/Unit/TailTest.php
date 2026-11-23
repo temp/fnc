@@ -7,7 +7,6 @@ namespace FncTests\Unit;
 use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\TestCase;
 
-use function Fnc\map;
 use function Fnc\tail;
 
 #[CoversFunction('Fnc\tail')]
@@ -31,10 +30,5 @@ final class TailTest extends TestCase
         $this->assertSame('bc', tail('abc'));
         $this->assertSame('', tail('a'));
         $this->assertSame('', tail(''));
-    }
-
-    public function testCurried(): void
-    {
-        $this->assertSame([[2], []], map(tail(), [[1, 2], [4]]));
     }
 }

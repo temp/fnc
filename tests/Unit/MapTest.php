@@ -17,25 +17,7 @@ final class MapTest extends TestCase
     {
         $data = null;
 
-        $result = map(
-            static function ($i) {
-                return $i * 2;
-            },
-            $data,
-        );
-
-        $this->assertSame([], $result);
-    }
-
-    public function testCurriedNull(): void
-    {
-        $data = null;
-
-        $map = map(static function ($i) {
-            return $i * 2;
-        });
-
-        $result = $map($data);
+        $result = map($this->double(...), $data);
 
         $this->assertSame([], $result);
     }
@@ -44,25 +26,7 @@ final class MapTest extends TestCase
     {
         $data = [];
 
-        $result = map(
-            static function ($i) {
-                return $i * 2;
-            },
-            $data,
-        );
-
-        $this->assertSame([], $result);
-    }
-
-    public function testCurriedEmptyArray(): void
-    {
-        $data = [];
-
-        $map = map(static function ($i) {
-            return $i * 2;
-        });
-
-        $result = $map($data);
+        $result = map($this->double(...), $data);
 
         $this->assertSame([], $result);
     }
@@ -71,25 +35,7 @@ final class MapTest extends TestCase
     {
         $data = [1, 2, 3];
 
-        $result = map(
-            static function ($i) {
-                return $i * 2;
-            },
-            $data,
-        );
-
-        $this->assertSame([2, 4, 6], $result);
-    }
-
-    public function testCurriedInt(): void
-    {
-        $data = [1, 2, 3];
-
-        $map = map(static function ($i) {
-            return $i * 2;
-        });
-
-        $result = $map($data);
+        $result = map($this->double(...), $data);
 
         $this->assertSame([2, 4, 6], $result);
     }
@@ -108,16 +54,8 @@ final class MapTest extends TestCase
         $this->assertSame(['abc' => 'DEF'], $result);
     }
 
-    public function testCurriedString(): void
+    private function double(int $i): int
     {
-        $data = ['abc' => 'def'];
-
-        $map = map(static function ($i) {
-            return strtoupper($i);
-        });
-
-        $result = $map($data);
-
-        $this->assertSame(['abc' => 'DEF'], $result);
+        return $i * 2;
     }
 }

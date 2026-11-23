@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace FncTests\Unit;
 
 use PHPUnit\Framework\Attributes\CoversFunction;
-use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\TestCase;
 
-use function Fnc\curry2;
 use function Fnc\filter;
 use function Fnc\head;
+use function trim;
 
 #[CoversFunction('Fnc\filter')]
 final class FilterTest extends TestCase
@@ -58,19 +57,16 @@ final class FilterTest extends TestCase
         $this->assertSame([1 => 'x'], filter('trim', [' ', 'x']));
     }
 
-    public function testCurriedCallbackReceivesKey(): void
+    public function testPartialApplicationReceivesKeyForPlaceholder(): void
     {
-        $evenKey = curry2(static fn ($v, $k) => $k % 2 === 0);
+        $evenKey = (static fn ($v, $k) => $k % 2 === 0)(?, ?);
 
         $this->assertSame([0 => 'a', 2 => 'c'], filter($evenKey, ['a', 'b', 'c', 'd']));
     }
 
-    #[RequiresPhp('>=8.6.0')]
-    public function testPartialApplicationDoesNotReceiveKey(): void
+    public function testPartialApplicationDoesNotReceiveKeyForOptionalParameter(): void
     {
         // the key 'x' must not end up as trim()'s $characters
-        $trim = InternalAcceptsArgsTest::partial('trim(?, ...)');
-
-        $this->assertSame(['x' => 'x'], filter($trim, ['x' => 'x', 'y' => '']));
+        $this->assertSame(['x' => 'x'], filter(trim(?, ...), ['x' => 'x', 'y' => '']));
     }
 }

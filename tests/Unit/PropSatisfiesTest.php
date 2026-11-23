@@ -15,16 +15,8 @@ final class PropSatisfiesTest extends TestCase
 {
     public function testPropSatisfies(): void
     {
-        $this->assertTrue(propSatisfies(isEmpty(), 'id', ['id' => '']));
-        $this->assertFalse(propSatisfies(isEmpty(), 'id', ['id' => 'x']));
-        $this->assertTrue(propSatisfies(isEmpty(), 'missing', ['id' => 'x']));
-    }
-
-    public function testCurried(): void
-    {
-        $isCompleted = propSatisfies(static fn ($v) => (int) $v === 1, 'completed');
-
-        $this->assertTrue($isCompleted(['completed' => '1']));
-        $this->assertFalse($isCompleted(['completed' => '0']));
+        $this->assertTrue(propSatisfies(isEmpty(...), 'id', ['id' => '']));
+        $this->assertFalse(propSatisfies(isEmpty(...), 'id', ['id' => 'x']));
+        $this->assertTrue(propSatisfies(isEmpty(...), 'missing', ['id' => 'x']));
     }
 }

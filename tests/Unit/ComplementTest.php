@@ -15,7 +15,7 @@ final class ComplementTest extends TestCase
 {
     public function testComplement(): void
     {
-        $isNotEmpty = complement(isEmpty());
+        $isNotEmpty = complement(isEmpty(...));
 
         $this->assertTrue($isNotEmpty('foo'));
     }

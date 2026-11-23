@@ -6,7 +6,6 @@ namespace FncTests\Unit;
 
 use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 use function Fnc\_reflectCallable;
 
@@ -18,10 +17,8 @@ final class InternalReflectCallableTest extends TestCase
         $this->assertSame('trim', _reflectCallable('trim')->getName());
     }
 
-    public function testNonCallableThrows(): void
+    public function testArrayCallable(): void
     {
-        $this->expectException(RuntimeException::class);
-
-        _reflectCallable('not a function');
+        $this->assertSame('testArrayCallable', _reflectCallable([$this, 'testArrayCallable'])->getName());
     }
 }

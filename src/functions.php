@@ -9,7 +9,6 @@ use InvalidArgumentException;
 use ReflectionFunction;
 use RuntimeException;
 use stdClass;
-use WeakMap;
 
 use function array_column;
 use function array_diff_key;
@@ -20,21 +19,18 @@ use function array_key_last;
 use function array_keys;
 use function array_map;
 use function array_merge;
-use function array_reduce;
 use function array_reverse;
 use function array_shift;
 use function array_slice;
 use function array_sum;
 use function array_values;
-use function call_user_func_array;
+use function clamp as phpClamp;
 use function count;
 use function explode;
 use function fdiv;
 use function func_get_args;
-use function func_num_args;
 use function get_object_vars;
 use function implode;
-use function in_array;
 use function is_array;
 use function is_bool;
 use function is_callable;
@@ -62,375 +58,335 @@ use const ARRAY_FILTER_USE_BOTH;
 /**
  * Adds two numbers. `null` counts as 0.
  *
- * Signature: `add($a, $b)`, curried.
- *
  * @category Math
  * @example  add(2, 3); // 5
+ * @example  map(add(1, ?), [1, 2]); // [2, 3]
  */
-function add(mixed ...$args): mixed
+function add(mixed $a, mixed $b): int|float
 {
-    $_add = static function ($a, $b) {
-        return ($a ?? 0) + ($b ?? 0);
-    };
-
-    return curry2($_add)(...$args);
+    return ($a ?? 0) + ($b ?? 0);
 }
 
 /**
- * Returns `true` if all elements of the list match the predicate, `false` if there are any
- * that don't.
- * Function "breaks early"
+ * Returns `true` if all elements of the list match the predicate, `false` if there are any that don't. Stops at the
+ * first element that doesn't match.
  *
- * Signature: `all(callable $fn, array $list)`, curried.
+ * @param callable(mixed): mixed $predicate
+ * @param array<mixed>           $list
  *
  * @category List
  */
-function all(mixed ...$args): mixed
+function all(callable $predicate, array $list): bool
 {
-    $_all = static function (callable $fn, array $list) {
-        foreach ($list as $item) {
-            if (!apply($fn, [$item])) {
+    foreach ($list as $item) {
+        if (!$predicate($item)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Takes a list of predicates and returns a predicate that is satisfied if all of them are satisfied by the given
+ * arguments. Stops at the first predicate that isn't satisfied.
+ *
+ * @param array<callable> $predicates
+ *
+ * @return Closure(mixed...): bool
+ *
+ * @category Logic
+ */
+function allPass(array $predicates): Closure
+{
+    return static function (mixed ...$args) use ($predicates): bool {
+        foreach ($predicates as $predicate) {
+            if (!$predicate(...$args)) {
                 return false;
             }
         }
 
         return true;
     };
-
-    return curry2($_all)(...$args);
-}
-
-/**
- * Takes a list of predicates and returns a predicate that is satisfied if all of them are satisfied by the
- * given arguments. Stops at the first predicate that isn't satisfied.
- *
- * Signature: `allPass(array $predicates)`, curried.
- *
- * @category Logic
- */
-function allPass(mixed ...$args): mixed
-{
-    $_allPass = static function (array $predicates) {
-        return static function (...$args) use ($predicates): bool {
-            foreach ($predicates as $predicate) {
-                if (!$predicate(...$args)) {
-                    return false;
-                }
-            }
-
-            return true;
-        };
-    };
-
-    return curry1($_allPass)(...$args);
 }
 
 /**
  * Returns a function that always returns the given value, whatever arguments it gets. Objects are returned as the
  * same instance.
  *
+ * @param T $value
+ *
+ * @return Closure(mixed...): T
+ *
+ * @template T
  * @category Function
  */
-function always(mixed $arg): callable
+function always(mixed $value): Closure
 {
-    return static function () use ($arg) {
-        return $arg;
-    };
+    return static fn (mixed ...$args) => $value;
 }
 
 /**
- * Returns `true` if at least one of the elements of the list match the predicate, `false` otherwise.
- * Function "breaks early"
+ * Returns `true` if at least one of the elements of the list matches the predicate, `false` otherwise. Stops at the
+ * first match.
  *
- * Signature: `any(callable $fn, array $list)`, curried.
+ * @param callable(mixed): mixed $predicate
+ * @param array<mixed>           $list
  *
  * @category List
  */
-function any(mixed ...$args): mixed
+function any(callable $predicate, array $list): bool
 {
-    $_any = static function (callable $fn, array $list) {
-        foreach ($list as $item) {
-            if (apply($fn, [$item])) {
+    foreach ($list as $item) {
+        if ($predicate($item)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Takes a list of predicates and returns a predicate that is satisfied if at least one of them is satisfied by the
+ * given arguments. Stops at the first predicate that is satisfied.
+ *
+ * @param array<callable> $predicates
+ *
+ * @return Closure(mixed...): bool
+ *
+ * @category Logic
+ */
+function anyPass(array $predicates): Closure
+{
+    return static function (mixed ...$args) use ($predicates): bool {
+        foreach ($predicates as $predicate) {
+            if ($predicate(...$args)) {
                 return true;
             }
         }
 
         return false;
     };
-
-    return curry2($_any)(...$args);
 }
 
 /**
- * Takes a list of predicates and returns a predicate that is satisfied if at least one of them is satisfied by
- * the given arguments. Stops at the first predicate that is satisfied.
+ * Calls the function with the elements of the list as arguments. String keys become named arguments.
  *
- * Signature: `anyPass(array $predicates)`, curried.
- *
- * @category Logic
- */
-function anyPass(mixed ...$args): mixed
-{
-    $_anyPass = static function (array $predicates) {
-        return static function (...$args) use ($predicates): bool {
-            foreach ($predicates as $predicate) {
-                if ($predicate(...$args)) {
-                    return true;
-                }
-            }
-
-            return false;
-        };
-    };
-
-    return curry1($_anyPass)(...$args);
-}
-
-/**
- * Applies function fn to the argument list args. This is useful for creating a fixed-arity function from a
- * variadic function.
- *
- * Signature: `apply(callable $callable, array $list)`, curried.
+ * @param array<mixed> $args
  *
  * @category Function
+ * @example  apply(max(...), [1, 5, 3]); // 5
  */
-function apply(mixed ...$args): mixed
+function apply(callable $fn, array $args): mixed
 {
-    $_apply = static function (callable $callable, array $list) {
-        return $callable(...$list);
-    };
-
-    return curry2($_apply)(...$args);
+    return $fn(...$args);
 }
 
 /**
  * Returns a function that builds an array shaped like the spec: each callable in the spec is called with the
- * arguments, nested arrays are nested specs. The result is curried with the highest arity of the callables.
+ * arguments, nested arrays are nested specs. The function requires as many arguments as the callable with the
+ * most required parameters.
+ *
+ * @param array<mixed> $spec
+ *
+ * @return Closure(mixed...): array<mixed>
  *
  * @category Function
- * @example  applySpec(['name' => prop('name'), 'city' => path(['address', 'city'])]);
+ * @example  applySpec(['name' => prop('name', ?), 'city' => path(['address', 'city'], ?)]);
  */
-function applySpec(mixed $spec): mixed
+function applySpec(array $spec): Closure
 {
-    $_applySpec = static function (array $spec) {
-        $mapValues = static function (callable $fn, $obj) {
-            return array_reduce(
-                array_keys($obj),
-                static function ($acc, $key) use ($fn, $obj) {
-                    $acc[$key] = $fn($obj[$key]);
+    $spec = array_map(static fn ($value) => is_array($value) ? applySpec($value) : $value, $spec);
 
-                    return $acc;
-                },
-                [],
-            );
-        };
+    $arity = 0;
+    foreach ($spec as $fn) {
+        $arity = phpMax($arity, _getArity($fn));
+    }
 
-        $spec = $mapValues(
-            static function ($v) {
-                return is_array($v) ? applySpec($v) : $v;
-            },
-            $spec,
-        );
-
-        $arity = 0;
-        foreach ($spec as $f) {
-            $arity = phpMax($arity, _getArity($f));
-        }
-
-        return curryN(
-            $arity,
-            static function (...$args) use ($spec, $mapValues) {
-                return $mapValues(
-                    static function ($f) use ($args) {
-                        return $f(...$args);
-                    },
-                    $spec,
-                );
-            },
-        );
-    };
-
-    return curry1($_applySpec)($spec);
+    return _arity(
+        $arity,
+        static fn (mixed ...$args) => array_map(static fn (callable $fn) => $fn(...$args), $spec),
+    );
 }
 
 /**
- * Comparator for `sortWith()`: compares two values by the result of the function, ascending, with `<=>`. Note that
- * `<=>` compares numeric strings numerically (`'9999' < '10000'`); use `ascendWith(strcmp(...), $fn)` for byte-wise
- * string order.
+ * Returns a comparator for `sortWith()` that compares two values by the result of the function, ascending, with
+ * `<=>`. Note that `<=>` compares numeric strings numerically (`'9999' < '10000'`); use
+ * `ascendWith(strcmp(...), $fn)` for byte-wise string order.
  *
- * Signature: `ascend(callable $fn, $a, $b): int`, curried.
+ * @return Closure(mixed, mixed): int
  *
  * @category Function
- * @example  sortWith([ascend(prop('carhouse_id')), descend(prop('date'))], $records);
+ * @example  sortWith([ascend(prop('carhouse_id', ?)), descend(prop('date', ?))], $records);
  */
-function ascend(mixed ...$args): mixed
+function ascend(callable $fn): Closure
 {
-    $_ascend = static function (callable $fn, $a, $b): int {
-        return $fn($a) <=> $fn($b);
-    };
-
-    return curry3($_ascend)(...$args);
+    return static fn (mixed $a, mixed $b): int => $fn($a) <=> $fn($b);
 }
 
 /**
- * Comparator for `sortWith()` like `ascend()`, but compares the results of the function with the given comparison
- * function, e.g. `strcmp(...)` for byte-wise string order or `strnatcasecmp(...)`. These require strings; for values
- * that may be ints, use `static fn ($a, $b) => strcmp((string) $a, (string) $b)`. The comparison function may
- * return any number or a bool, like for `usort()`.
+ * Like `ascend()`, but compares the results of the function with the given comparison function, e.g. `strcmp(...)`
+ * for byte-wise string order or `strnatcasecmp(...)`. These require strings; for values that may be ints, use
+ * `static fn ($a, $b) => strcmp((string) $a, (string) $b)`. The comparison function may return any number or a
+ * bool, like for `usort()`.
  *
- * Signature: `ascendWith(callable $compare, callable $fn, $a, $b): int`, curried.
+ * @return Closure(mixed, mixed): int
  *
  * @category Function
- * @example  sortWith([ascendWith(strcmp(...), prop('carhouse_id')), ascendWith(strcmp(...), prop('id'))], $records);
+ * @example  sortWith([ascendWith(strcmp(...), prop('carhouse_id', ?))], $records);
  */
-function ascendWith(mixed ...$args): mixed
+function ascendWith(callable $compare, callable $fn): Closure
 {
-    $_ascendWith = static function (callable $compare, callable $fn, $a, $b): int {
-        // normalise floats and bools returned by the comparison function, as usort() accepts them too
-        return $compare($fn($a), $fn($b)) <=> 0;
-    };
-
-    return curry4($_ascendWith)(...$args);
+    // normalise floats and bools returned by the comparison function, as usort() accepts them too
+    return static fn (mixed $a, mixed $b): int => $compare($fn($a), $fn($b)) <=> 0;
 }
 
 /**
  * Returns a copy of the array with the key set to the value.
  *
- * Signature: `assoc(string|int $key, $value, array $array)`, curried.
+ * @param array<mixed> $array
+ *
+ * @return array<mixed>
  *
  * @category Object
  * @example  assoc('b', 2, ['a' => 1]); // ['a' => 1, 'b' => 2]
  */
-function assoc(mixed ...$args): mixed
+function assoc(string|int $key, mixed $value, array $array): array
 {
-    $_assoc = static function (string|int $key, $value, array $array) {
-        $array[$key] = $value;
+    $array[$key] = $value;
 
-        return $array;
-    };
-
-    return curry3($_assoc)(...$args);
+    return $array;
 }
 
 /**
  * Returns a copy of the array with the nested key set to the value. Missing levels are created as arrays, non
  * array values on the way are replaced.
  *
- * Signature: `assocPath(array $path, $value, $array) use (&$_assocPath)`, curried.
+ * @param array<string|int> $path
  *
  * @category Object
  * @example  assocPath(['a', 'b'], 1, []); // ['a' => ['b' => 1]]
  */
-function assocPath(mixed ...$args): mixed
+function assocPath(array $path, mixed $value, mixed $array): mixed
 {
-    $_assocPath = static function (array $path, $value, $array) use (&$_assocPath) {
-        if ($path === []) {
-            return $value;
-        }
+    if ($path === []) {
+        return $value;
+    }
 
-        $key = array_shift($path);
-        $array = is_array($array) ? $array : [];
-        $array[$key] = $_assocPath($path, $value, $array[$key] ?? null);
+    $key = array_shift($path);
+    $array = is_array($array) ? $array : [];
+    $array[$key] = assocPath($path, $value, $array[$key] ?? null);
 
-        return $array;
-    };
-
-    return curry3($_assocPath)(...$args);
+    return $array;
 }
 
 /**
  * Returns a predicate that is satisfied if both predicates are satisfied. The second predicate is only called if
  * the first one is satisfied.
  *
- * Signature: `both(callable $f, callable $g)`, curried.
+ * @return Closure(mixed...): bool
  *
  * @category Logic
  */
-function both(mixed ...$args): mixed
+function both(callable $f, callable $g): Closure
 {
-    $_both = static function (callable $f, callable $g) {
-        return static fn (...$args): bool => $f(...$args) && $g(...$args);
-    };
-
-    return curry2($_both)(...$args);
+    return static fn (mixed ...$args): bool => $f(...$args) && $g(...$args);
 }
 
 /**
  * Maps each element to a list and concatenates the results (flatMap). Returns a list.
  *
- * Signature: `chain(callable $fn, array $list)`, curried.
+ * @param callable(mixed): iterable<mixed> $fn
+ * @param array<mixed>                     $list
+ *
+ * @return list<mixed>
  *
  * @category List
  * @example  chain(fn ($n) => [$n, $n], [1, 2]); // [1, 1, 2, 2]
  */
-function chain(mixed ...$args): mixed
+function chain(callable $fn, array $list): array
 {
-    $_chain = static function (callable $fn, array $list) {
-        $result = [];
-        foreach ($list as $value) {
-            foreach ($fn($value) as $item) {
-                $result[] = $item;
-            }
+    $result = [];
+    foreach ($list as $value) {
+        foreach ($fn($value) as $item) {
+            $result[] = $item;
         }
+    }
 
-        return $result;
-    };
+    return $result;
+}
 
-    return curry2($_chain)(...$args);
+/**
+ * Restricts the value to the range from `$min` to `$max`, using PHP's `clamp()`: works with anything comparable,
+ * e.g. numbers or `Time\Duration`. Throws a `ValueError` if `$min` is greater than `$max`.
+ *
+ * @param T $min
+ * @param T $max
+ * @param T $value
+ *
+ * @return T
+ *
+ * @template T
+ * @category Relation
+ * @example  clamp(1, 10, 15); // 10
+ * @example  map(clamp(0, 100, ?), [-5, 50, 150]); // [0, 50, 100]
+ */
+function clamp(mixed $min, mixed $max, mixed $value): mixed
+{
+    return phpClamp($value, $min, $max);
 }
 
 /**
  * Returns a function that returns the negated result of the given function.
  *
+ * @return Closure(mixed...): bool
+ *
  * @category Function
  */
-function complement(callable $fn): callable
+function complement(callable $fn): Closure
 {
-    return static function (...$args) use ($fn): bool {
-        return !$fn(...$args);
-    };
+    return static fn (mixed ...$args): bool => !$fn(...$args);
 }
 
 /**
  * Performs right-to-left function composition. The rightmost function may have any arity; the remaining functions
- * must be unary.
+ * must be unary. Throws InvalidArgumentException without functions.
  *
  * @category Function
  */
-function compose(callable ...$args): callable
+function compose(callable ...$fns): Closure
 {
-    if ($args === []) {
+    if ($fns === []) {
         throw new InvalidArgumentException('compose requires at least one argument');
     }
 
-    return pipe(...reverse($args));
+    return pipe(...array_reverse($fns));
 }
 
 /**
  * Concatenates two lists or two strings. Lists are treated as lists: the result contains the values of `$a`
  * followed by the values of `$b`, keys are not preserved. Use `merge()` for arrays with string keys.
  *
- * Signature: `concat(array|string $a, array|string $b)`, curried.
+ * @param array<mixed>|string $a
+ * @param array<mixed>|string $b
+ *
+ * @return list<mixed>|string
  *
  * @category List
  * @example  concat([1, 2], [3]); // [1, 2, 3]
  * @example  concat('ab', 'cd'); // 'abcd'
  */
-function concat(mixed ...$args): mixed
+function concat(array|string $a, array|string $b): array|string
 {
-    $_concat = static function (array|string $a, array|string $b) {
-        if (is_string($a) && is_string($b)) {
-            return $a . $b;
-        }
+    if (is_string($a) && is_string($b)) {
+        return $a . $b;
+    }
 
-        if (is_array($a) && is_array($b)) {
-            return [...array_values($a), ...array_values($b)];
-        }
+    if (is_array($a) && is_array($b)) {
+        return [...array_values($a), ...array_values($b)];
+    }
 
-        throw new InvalidArgumentException('concat expects two arrays or two strings');
-    };
-
-    return curry2($_concat)(...$args);
+    throw new InvalidArgumentException('concat expects two arrays or two strings');
 }
 
 /**
@@ -438,414 +394,149 @@ function concat(mixed ...$args): mixed
  * pair whose predicate is satisfied. Returns null if no predicate matches; use `always(true)` as the last
  * predicate for a default.
  *
- * Signature: `cond(array $pairs)`, curried.
+ * @param array<array{callable, callable}> $pairs
+ *
+ * @return Closure(mixed...): mixed
  *
  * @category Logic
  */
-function cond(mixed ...$args): mixed
+function cond(array $pairs): Closure
 {
-    $_cond = static function (array $pairs) {
-        return static function (...$args) use ($pairs) {
-            foreach ($pairs as [$predicate, $transformer]) {
-                if ($predicate(...$args)) {
-                    return $transformer(...$args);
-                }
+    return static function (mixed ...$args) use ($pairs) {
+        foreach ($pairs as [$predicate, $transformer]) {
+            if ($predicate(...$args)) {
+                return $transformer(...$args);
             }
+        }
 
-            return null;
-        };
+        return null;
     };
-
-    return curry1($_cond)(...$args);
-}
-
-/**
- * Returns true if the list contains the value, compared strictly (`in_array(…, true)`): objects by identity,
- * arrays only if identical including key order.
- *
- * Signature: `contains($needle, array $list)`, curried.
- *
- * @deprecated Use includes(), which compares with equals() and also works on strings.
- *
- * @category List
- */
-function contains(mixed ...$args): mixed
-{
-    $_contains = static function ($needle, array $list) {
-        return in_array($needle, $list, true);
-    };
-
-    return curry2($_contains)(...$args);
 }
 
 /**
  * Returns a function that calls each of the branch functions with its arguments and passes their results to the
  * converging function.
  *
- * Signature: `converge(callable $after, array $branches)`, curried.
+ * @param array<callable> $branches
+ *
+ * @return Closure(mixed...): mixed
  *
  * @category Function
- * @example  converge(divide(), [sum(), 'count']); // average
+ * @example  converge(divide(...), [sum(...), count(...)]); // average
  */
-function converge(mixed ...$args): callable
+function converge(callable $after, array $branches): Closure
 {
-    $_converge = static function (callable $fn, array $funcs) {
-        return static function (...$args) use ($fn, $funcs) {
-            $flippedApply = flip(apply(), 2);
-            $applyItemsOverFunctions = map($flippedApply($args));
-
-            return apply($fn, $applyItemsOverFunctions($funcs));
-        };
-    };
-
-    return curry2($_converge)(...$args);
-}
-
-/**
- * Curries a function of one argument: called without arguments it returns itself.
- *
- * @category Function
- */
-function curry1(callable $fn): callable
-{
-    $_curry1 = static function () use ($fn, &$_curry1) {
-        $args = func_get_args();
-
-        switch (count($args)) {
-            case 0:
-                return $_curry1;
-
-            case 1:
-                return call_user_func_array($fn, $args);
-
-            default:
-                return call_user_func_array($fn, [$args[0]]);
-        }
-    };
-
-    _curriedArity($_curry1, 1);
-
-    return $_curry1;
-}
-
-/**
- * Curries a function of two arguments: arguments can be passed all at once or one at a time.
- *
- * @category Function
- */
-function curry2(callable $fn): callable
-{
-    $_curry2 = static function () use ($fn, &$_curry2) {
-        $args = func_get_args();
-
-        switch (func_num_args()) {
-            case 0:
-                return $_curry2;
-
-            case 1:
-                return static function ($b) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $b]);
-                };
-
-            case 2:
-                return call_user_func_array($fn, $args);
-
-            default:
-                return call_user_func_array($fn, [$args[0], $args[1]]);
-        }
-    };
-
-    _curriedArity($_curry2, 2);
-
-    return $_curry2;
-}
-
-/**
- * Curries a function of three arguments: arguments can be passed all at once or in several calls.
- *
- * @category Function
- */
-function curry3(callable $fn): callable
-{
-    $_curry3 = static function () use ($fn, &$_curry3) {
-        $args = func_get_args();
-
-        switch (func_num_args()) {
-            case 0:
-                return $_curry3;
-
-            case 1:
-                return curry2(static function ($b, $c) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $b, $c]);
-                });
-
-            case 2:
-                return static function ($c) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $args[1], $c]);
-                };
-
-            case 3:
-                return call_user_func_array($fn, $args);
-
-            default:
-                return call_user_func_array($fn, [$args[0], $args[1], $args[2]]);
-        }
-    };
-
-    _curriedArity($_curry3, 3);
-
-    return $_curry3;
-}
-
-/**
- * Curries a function of four arguments: arguments can be passed all at once or in several calls.
- *
- * @category Function
- */
-function curry4(callable $fn): callable
-{
-    $_curry4 = static function () use ($fn, &$_curry4) {
-        $args = func_get_args();
-
-        switch (func_num_args()) {
-            case 0:
-                return $_curry4;
-
-            case 1:
-                return curry3(static function ($b, $c, $d) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $b, $c, $d]);
-                });
-
-            case 2:
-                return curry2(static function ($c, $d) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $args[1], $c, $d]);
-                });
-
-            case 3:
-                return static function ($d) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $args[1], $args[2], $d]);
-                };
-
-            case 4:
-                return call_user_func_array($fn, $args);
-
-            default:
-                return call_user_func_array($fn, [$args[0], $args[1], $args[2], $args[3]]);
-        }
-    };
-
-    _curriedArity($_curry4, 4);
-
-    return $_curry4;
-}
-
-/**
- * Curries a function of five arguments: arguments can be passed all at once or in several calls.
- *
- * @category Function
- */
-function curry5(callable $fn): callable
-{
-    $_curry5 = static function () use ($fn, &$_curry5) {
-        $args = func_get_args();
-
-        switch (func_num_args()) {
-            case 0:
-                return $_curry5;
-
-            case 1:
-                return curry4(static function ($b, $c, $d, $e) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $b, $c, $d, $e]);
-                });
-
-            case 2:
-                return curry3(static function ($c, $d, $e) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $args[1], $c, $d, $e]);
-                });
-
-            case 3:
-                return curry2(static function ($d, $e) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $args[1], $args[2], $d, $e]);
-                });
-
-            case 4:
-                return static function ($e) use ($args, $fn) {
-                    return call_user_func_array($fn, [$args[0], $args[1], $args[2], $args[3], $e]);
-                };
-
-            case 5:
-                return call_user_func_array($fn, $args);
-
-            default:
-                return call_user_func_array($fn, [$args[0], $args[1], $args[2], $args[3], $args[4]]);
-        }
-    };
-
-    _curriedArity($_curry5, 5);
-
-    return $_curry5;
-}
-
-/**
- * Wrapper for curry* functions.
- *
- * @category Function
- */
-function curryN(int $arity, callable $callable): callable
-{
-    switch ($arity) {
-        case 0:
-            return $callable;
-
-        case 1:
-            return curry1($callable);
-
-        case 2:
-            return curry2($callable);
-
-        case 3:
-            return curry3($callable);
-
-        case 4:
-            return curry4($callable);
-
-        case 5:
-            return curry5($callable);
-
-        default:
-            throw new RuntimeException('unsupported arity ' . $arity);
-    }
+    return static fn (mixed ...$args) => $after(
+        ...array_map(static fn (callable $branch) => $branch(...$args), $branches),
+    );
 }
 
 /**
  * Decrements a number by 1.
  *
- * Signature: `dec($value)`, curried.
- *
  * @category Math
  */
-function dec(mixed ...$args): mixed
+function dec(mixed $value): int|float
 {
-    $_dec = static function ($value) {
-        return $value - 1;
-    };
-
-    return curry1($_dec)(...$args);
+    return $value - 1;
 }
 
 /**
  * Returns the value, or the default if the value is `null` or `NAN`.
  *
- * Signature: `defaultTo($default, $value)`, curried.
+ * @param D $default
+ * @param T $value
  *
+ * @return T|D
+ *
+ * @template D
+ * @template T
  * @category Logic
  * @example  defaultTo(42, null); // 42
  */
-function defaultTo(mixed ...$args): mixed
+function defaultTo(mixed $default, mixed $value): mixed
 {
-    $_defaultTo = static function ($default, $value) {
-        if ($value === null || (is_float($value) && is_nan($value))) {
-            return $default;
-        }
+    if ($value === null || (is_float($value) && is_nan($value))) {
+        return $default;
+    }
 
-        return $value;
-    };
-
-    return curry2($_defaultTo)(...$args);
+    return $value;
 }
 
 /**
- * Comparator for `sortWith()`: compares two values by the result of the function, descending.
+ * Returns a comparator for `sortWith()` that compares two values by the result of the function, descending.
  *
- * Signature: `descend(callable $fn, $a, $b): int`, curried.
+ * @return Closure(mixed, mixed): int
  *
  * @category Function
  */
-function descend(mixed ...$args): mixed
+function descend(callable $fn): Closure
 {
-    $_descend = static function (callable $fn, $a, $b): int {
-        return $fn($b) <=> $fn($a);
-    };
-
-    return curry3($_descend)(...$args);
+    return static fn (mixed $a, mixed $b): int => $fn($b) <=> $fn($a);
 }
 
 /**
- * Comparator for `sortWith()` like `descend()`, but compares the results of the function with the given comparison
- * function, e.g. `strcmp(...)`.
+ * Like `descend()`, but compares the results of the function with the given comparison function, e.g.
+ * `strcmp(...)`.
  *
- * Signature: `descendWith(callable $compare, callable $fn, $a, $b): int`, curried.
+ * @return Closure(mixed, mixed): int
  *
  * @category Function
  */
-function descendWith(mixed ...$args): mixed
+function descendWith(callable $compare, callable $fn): Closure
 {
-    $_descendWith = static function (callable $compare, callable $fn, $a, $b): int {
-        return $compare($fn($b), $fn($a)) <=> 0;
-    };
-
-    return curry4($_descendWith)(...$args);
+    return static fn (mixed $a, mixed $b): int => $compare($fn($b), $fn($a)) <=> 0;
 }
 
 /**
  * Divides two numbers. Equivalent to `$a / $b`, like Ramda: `null`, `false` and `''` count as 0, and dividing
  * by zero (also `'0'`) returns INF, -INF or NAN instead of throwing.
  *
- * Signature: `divide($a, $b)`, curried.
+ * @category Math
  */
-function divide(mixed ...$args): mixed
+function divide(mixed $a, mixed $b): int|float
 {
-    $_divide = static function ($a, $b) {
-        $orZero = static fn ($value) => $value === null || $value === false || $value === '' ? 0 : $value;
-        $a = $orZero($a);
-        $b = $orZero($b);
+    $orZero = static fn ($value) => $value === null || $value === false || $value === '' ? 0 : $value;
+    $a = $orZero($a);
+    $b = $orZero($b);
 
-        if (is_numeric($a) && is_numeric($b) && (float) $b === 0.0) {
-            return fdiv((float) $a, (float) $b);
-        }
+    if (is_numeric($a) && is_numeric($b) && (float) $b === 0.0) {
+        return fdiv((float) $a, (float) $b);
+    }
 
-        return $a / $b;
-    };
-
-    return curry2($_divide)(...$args);
+    return $a / $b;
 }
 
 /**
  * Removes the first `$count` elements of a list (like `array_slice()`: string keys are kept, numeric keys
  * renumbered) or characters of a string.
  *
- * Signature: `drop($count, $list)`, curried.
+ * @param array<mixed>|string $list
+ *
+ * @return array<mixed>|string
  *
  * @category List
  */
-function drop(mixed ...$args): mixed
+function drop(int $count, array|string $list): array|string
 {
-    $_drop = static function ($count, $list) {
-        if (is_array($list)) {
-            return array_slice($list, $count);
-        }
+    if (is_array($list)) {
+        return array_slice($list, $count);
+    }
 
-        return substr($list, $count);
-    };
-
-    return curry2($_drop)(...$args);
+    return substr($list, $count);
 }
 
 /**
  * Returns a predicate that is satisfied if at least one of the predicates is satisfied. The second predicate is
  * only called if the first one isn't satisfied.
  *
- * Signature: `either(callable $f, callable $g)`, curried.
+ * @return Closure(mixed...): bool
  *
  * @category Logic
  */
-function either(mixed ...$args): mixed
+function either(callable $f, callable $g): Closure
 {
-    $_either = static function (callable $f, callable $g) {
-        return static fn (...$args): bool => $f(...$args) || $g(...$args);
-    };
-
-    return curry2($_either)(...$args);
+    return static fn (mixed ...$args): bool => $f(...$args) || $g(...$args);
 }
 
 /**
@@ -853,42 +544,38 @@ function either(mixed ...$args): mixed
  *
  * @category Function
  */
-function emptyVal(mixed ...$args): mixed
+function emptyVal(mixed $value): mixed
 {
-    $_emptyVal = static function ($value) {
-        if (is_string($value)) {
-            return '';
-        }
+    if (is_string($value)) {
+        return '';
+    }
 
-        if (is_array($value)) {
-            return [];
-        }
+    if (is_array($value)) {
+        return [];
+    }
 
-        if (is_object($value) && is_callable($value)) {
-            return static function (): void {
-            };
-        }
+    if (is_object($value) && is_callable($value)) {
+        return static function (): void {
+        };
+    }
 
-        if (is_object($value)) {
-            return new stdClass();
-        }
+    if (is_object($value)) {
+        return new stdClass();
+    }
 
-        if (is_int($value)) {
-            return 0;
-        }
+    if (is_int($value)) {
+        return 0;
+    }
 
-        if (is_float($value)) {
-            return 0.0;
-        }
+    if (is_float($value)) {
+        return 0.0;
+    }
 
-        if (is_bool($value)) {
-            return false;
-        }
+    if (is_bool($value)) {
+        return false;
+    }
 
-        return null;
-    };
-
-    return curry1($_emptyVal)(...$args);
+    return null;
 }
 
 /**
@@ -896,8 +583,10 @@ function emptyVal(mixed ...$args): mixed
  * float types), `NAN` equals `NAN` like in Ramda, arrays by key (list order matters, order of string keys
  * doesn't), objects only if they are of the same class and all their properties are equal. Closures are
  * compared by identity. Cyclic object graphs are supported.
+ *
+ * @category Relation
  */
-function equals(mixed ...$args): mixed
+function equals(mixed $a, mixed $b): bool
 {
     $compare = static function ($actual, $expected, array &$seen) use (&$compare): bool {
         if ($actual === $expected) {
@@ -946,13 +635,9 @@ function equals(mixed ...$args): mixed
         return true;
     };
 
-    $_equals = static function ($a, $b) use ($compare) {
-        $seen = [];
+    $seen = [];
 
-        return $compare($a, $b, $seen);
-    };
-
-    return curry2($_equals)(...$args);
+    return $compare($a, $b, $seen);
 }
 
 /**
@@ -960,978 +645,832 @@ function equals(mixed ...$args): mixed
  * transformations is applied to the nested array. Keys missing in the input are not added.
  * Callables in arrays (`[$object, 'method']`) would be taken for nested transformations, wrap them in a closure.
  *
- * Signature: `evolve(array $transformations, array $array) use (&$_evolve)`, curried.
+ * @param array<mixed> $transformations
+ * @param array<mixed> $array
+ *
+ * @return array<mixed>
  *
  * @category Object
- * @example  evolve(['count' => inc()], ['count' => 1, 'name' => 'a']); // ['count' => 2, 'name' => 'a']
+ * @example  evolve(['count' => inc(...)], ['count' => 1, 'name' => 'a']); // ['count' => 2, 'name' => 'a']
  */
-function evolve(mixed ...$args): mixed
+function evolve(array $transformations, array $array): array
 {
-    $_evolve = static function (array $transformations, array $array) use (&$_evolve) {
-        foreach ($transformations as $key => $transformation) {
-            if (!array_key_exists($key, $array)) {
-                continue;
-            }
-
-            if (is_array($transformation)) {
-                if (is_array($array[$key])) {
-                    $array[$key] = $_evolve($transformation, $array[$key]);
-                }
-            } elseif (is_callable($transformation)) {
-                $array[$key] = $transformation($array[$key]);
-            }
+    foreach ($transformations as $key => $transformation) {
+        if (!array_key_exists($key, $array)) {
+            continue;
         }
 
-        return $array;
-    };
+        if (is_array($transformation)) {
+            if (is_array($array[$key])) {
+                $array[$key] = evolve($transformation, $array[$key]);
+            }
+        } elseif (is_callable($transformation)) {
+            $array[$key] = $transformation($array[$key]);
+        }
+    }
 
-    return curry2($_evolve)(...$args);
+    return $array;
 }
 
 /**
  * Keeps the values matching the predicate. Keys are preserved; the key is passed as second argument if the predicate
  * accepts it.
  *
- * Signature: `filter(callable $callable, array $list)`, curried.
+ * @param (callable(V): mixed)|(callable(V, K): mixed) $predicate
+ * @param array<K, V>                                  $list
  *
+ * @return array<K, V>
+ *
+ * @template K of array-key
+ * @template V
  * @category List
  */
-function filter(mixed ...$args): mixed
+function filter(callable $predicate, array $list): array
 {
-    $_filter = static function (callable $callable, array $list) {
-        if (_acceptsArgs($callable, 2)) {
-            return array_filter($list, $callable, ARRAY_FILTER_USE_BOTH);
-        }
+    if (_acceptsArgs($predicate, 2)) {
+        return array_filter($list, static fn ($value, $key) => (bool) $predicate($value, $key), ARRAY_FILTER_USE_BOTH);
+    }
 
-        return array_filter($list, $callable);
-    };
-
-    return curry2($_filter)(...$args);
+    return array_filter($list, static fn ($value) => (bool) $predicate($value));
 }
 
 /**
  * Returns the first element matching the predicate, `null` if there is none.
  *
- * Signature: `find(callable $predicate, array $list)`, curried.
+ * @param callable(V): mixed $predicate
+ * @param array<V>           $list
  *
+ * @return V|null
+ *
+ * @template V
  * @category List
  */
-function find(mixed ...$args): mixed
+function find(callable $predicate, array $list): mixed
 {
-    $_find = static function (callable $predicate, array $list) {
-        foreach ($list as $value) {
-            if ($predicate($value)) {
-                return $value;
-            }
+    foreach ($list as $value) {
+        if ($predicate($value)) {
+            return $value;
         }
+    }
 
-        return null;
-    };
-
-    return curry2($_find)(...$args);
+    return null;
 }
 
 /**
  * Flattens nested arrays into one list, recursively.
  *
- * Signature: `flatten(array $list) use (&$_flatten)`, curried.
+ * @param array<mixed> $list
+ *
+ * @return list<mixed>
  *
  * @category List
  * @example  flatten([1, [2, [3, 4]]]); // [1, 2, 3, 4]
  */
-function flatten(mixed ...$args): mixed
+function flatten(array $list): array
 {
-    $_flatten = static function (array $list) use (&$_flatten) {
-        $result = [];
-        foreach ($list as $value) {
-            if (is_array($value)) {
-                foreach ($_flatten($value) as $item) {
-                    $result[] = $item;
-                }
-            } else {
-                $result[] = $value;
+    $result = [];
+    foreach ($list as $value) {
+        if (is_array($value)) {
+            foreach (flatten($value) as $item) {
+                $result[] = $item;
             }
+        } else {
+            $result[] = $value;
         }
+    }
 
-        return $result;
-    };
-
-    return curry1($_flatten)(...$args);
+    return $result;
 }
 
 /**
- * Returns a new function much like the supplied one, except that the first two arguments' order is reversed.
- *
- * @return callable
+ * Returns a function like the given one, but with the first two arguments swapped. It requires as many arguments as
+ * the function, but at least two.
  *
  * @category Function
+ * @example  flip(subtract(...))(10, 3); // -7
  */
-function flip(callable $callable, ?int $arity = null) // phpcs:ignore
+function flip(callable $fn): Closure
 {
-    if ($arity === null) {
-        // a variadic or unary callable still gets its first two arguments flipped
-        $arity = phpMax(2, _getArity($callable));
-    }
+    return _arity(
+        phpMax(2, _getArity($fn)),
+        static function (mixed ...$args) use ($fn) {
+            [$args[0], $args[1]] = [$args[1], $args[0]];
 
-    return curryN($arity, static function () use ($callable) {
-        $args = func_get_args();
-
-        return apply($callable, concat([$args[1], $args[0]], tail(tail($args))));
-    });
+            return $fn(...$args);
+        },
+    );
 }
 
 /**
  * Groups the elements by the key the function returns for them. Each group is a list.
  *
- * Signature: `groupBy(callable $fn, array $list)`, curried.
+ * @param callable(V): array-key $fn
+ * @param array<V>               $list
  *
+ * @return array<array-key, list<V>>
+ *
+ * @template V
  * @category List
  * @example  groupBy(fn ($n) => $n % 2 ? 'odd' : 'even', [1, 2, 3]); // ['odd' => [1, 3], 'even' => [2]]
  */
-function groupBy(mixed ...$args): mixed
+function groupBy(callable $fn, array $list): array
 {
-    $_groupBy = static function (callable $fn, array $list) {
-        $groups = [];
-        foreach ($list as $value) {
-            $groups[$fn($value)][] = $value;
-        }
+    $groups = [];
+    foreach ($list as $value) {
+        $groups[$fn($value)][] = $value;
+    }
 
-        return $groups;
-    };
-
-    return curry2($_groupBy)(...$args);
+    return $groups;
 }
 
 /**
- * `$a > $b`. Note the argument order when curried: `gt(5)` is "5 is greater than …", use `lt(5)` for
- * "… is greater than 5".
- *
- * Signature: `gt($a, $b): bool`, curried.
+ * `$a > $b`. With a placeholder, `gt(?, 5)` is "… is greater than 5".
  *
  * @category Relation
+ * @example  filter(gt(?, 5), [3, 7]); // [1 => 7]
  */
-function gt(mixed ...$args): mixed
+function gt(mixed $a, mixed $b): bool
 {
-    $_gt = static function ($a, $b): bool {
-        return $a > $b;
-    };
-
-    return curry2($_gt)(...$args);
+    return $a > $b;
 }
 
 /**
  * `$a >= $b`.
  *
- * Signature: `gte($a, $b): bool`, curried.
- *
  * @category Relation
  */
-function gte(mixed ...$args): mixed
+function gte(mixed $a, mixed $b): bool
 {
-    $_gte = static function ($a, $b): bool {
-        return $a >= $b;
-    };
-
-    return curry2($_gte)(...$args);
+    return $a >= $b;
 }
 
 /**
  * Whether the array has the key or the object has the public property, even if its value is `null`.
  *
- * Signature: `has(string|int $key, $item): bool`, curried.
- *
  * @category Object
  */
-function has(mixed ...$args): mixed
+function has(string|int $key, mixed $item): bool
 {
-    $_has = static function (string|int $key, $item): bool {
-        if (is_array($item)) {
-            return array_key_exists($key, $item);
-        }
+    if (is_array($item)) {
+        return array_key_exists($key, $item);
+    }
 
-        if (is_object($item)) {
-            return array_key_exists($key, get_object_vars($item));
-        }
+    if (is_object($item)) {
+        return array_key_exists($key, get_object_vars($item));
+    }
 
-        return false;
-    };
-
-    return curry2($_has)(...$args);
+    return false;
 }
 
 /**
  * The first element of a list (`null` if empty, keys are ignored) or the first character of a string.
  *
- * Signature: `head(array|string $list)`, curried.
+ * @param array<mixed>|string $list
  *
  * @category List
  */
-function head(mixed ...$args): mixed
+function head(array|string $list): mixed
 {
-    $_head = static function (array|string $list) {
-        if (is_string($list)) {
-            return substr($list, 0, 1);
-        }
+    if (is_string($list)) {
+        return substr($list, 0, 1);
+    }
 
-        if ($list === []) {
-            return null;
-        }
+    if ($list === []) {
+        return null;
+    }
 
-        return $list[array_key_first($list)];
-    };
-
-    return curry1($_head)(...$args);
+    return $list[array_key_first($list)];
 }
 
 /**
  * Returns its argument unchanged.
  *
- * Signature: `identity($value)`, curried.
+ * @param T $value
  *
+ * @return T
+ *
+ * @template T
  * @category Function
  */
-function identity(mixed ...$args): mixed
+function identity(mixed $value): mixed
 {
-    $_identity = static function ($identity) {
-        return $identity;
-    };
-
-    return curry1($_identity)(...$args);
+    return $value;
 }
 
 /**
- * Creates a function that calls $onTrue if $condition is satisfied, $onFalse otherwise.
- * A null branch returns the first argument unchanged.
+ * Creates a function that calls $onTrue if $condition is satisfied, $onFalse otherwise. A null branch returns the
+ * first argument unchanged. The function requires as many arguments as the callable with the most required
+ * parameters.
  *
- * Signature: `ifElse(callable $condition, callable|null $onTrue, callable|null $onFalse)`, curried.
+ * @category Logic
+ * @example  ifElse(is_string(...), trim(...), null);
  */
-function ifElse(mixed ...$args): callable
+function ifElse(callable $condition, callable|null $onTrue, callable|null $onFalse): Closure
 {
-    $_ifElse = static function (callable $condition, callable|null $onTrue, callable|null $onFalse) {
-        $arity = phpMax(
-            _getArity($condition),
-            $onTrue !== null ? _getArity($onTrue) : 0,
-            $onFalse !== null ? _getArity($onFalse) : 0,
-        );
+    $arity = phpMax(
+        _getArity($condition),
+        $onTrue !== null ? _getArity($onTrue) : 0,
+        $onFalse !== null ? _getArity($onFalse) : 0,
+    );
 
-        $identity = static fn (...$args) => $args[0] ?? null;
-        $onTrue ??= $identity;
-        $onFalse ??= $identity;
+    $identity = static fn (mixed ...$args) => $args[0] ?? null;
+    $onTrue ??= $identity;
+    $onFalse ??= $identity;
 
-        $__ifElse = static function (...$args) use ($condition, $onTrue, $onFalse) {
-            return $condition(...$args) ? $onTrue(...$args) : $onFalse(...$args);
-        };
-
-        return curryN($arity, $__ifElse);
-    };
-
-    return curry3($_ifElse)(...$args);
+    return _arity(
+        $arity,
+        static fn (mixed ...$args) => $condition(...$args) ? $onTrue(...$args) : $onFalse(...$args),
+    );
 }
 
 /**
  * Increments a number by 1.
  *
- * Signature: `inc($value)`, curried.
- *
  * @category Math
  */
-function inc(mixed ...$args): mixed
+function inc(mixed $value): int|float
 {
-    $_inc = static function ($value) {
-        return $value + 1;
-    };
-
-    return curry1($_inc)(...$args);
+    return $value + 1;
 }
 
 /**
  * Whether the list contains an element equal to the needle (in `equals()` terms), or the string contains the
  * needle as substring.
  *
- * Signature: `includes($needle, array|string $haystack): bool`, curried.
+ * @param array<mixed>|string $haystack
  *
  * @category List
  * @example  includes(['a' => 1], [['a' => 1], ['b' => 2]]); // true
  * @example  includes('ell', 'hello'); // true
  */
-function includes(mixed ...$args): mixed
+function includes(mixed $needle, array|string $haystack): bool
 {
-    $_includes = static function ($needle, array|string $haystack): bool {
-        if (is_string($haystack)) {
-            return is_string($needle) && str_contains($haystack, $needle);
+    if (is_string($haystack)) {
+        return is_string($needle) && str_contains($haystack, $needle);
+    }
+
+    foreach ($haystack as $value) {
+        if (equals($needle, $value)) {
+            return true;
         }
+    }
 
-        foreach ($haystack as $value) {
-            if (equals($needle, $value)) {
-                return true;
-            }
-        }
-
-        return false;
-    };
-
-    return curry2($_includes)(...$args);
+    return false;
 }
 
 /**
  * Whether the value equals the empty value of its type (see `emptyVal()`), e.g. `''`, `[]`, `0`, `null` or an object
  * without properties. Unlike Ramda, `0` and `null` count as empty.
  *
- * Signature: `isEmpty($value)`, curried.
- *
  * @category Logic
  */
-function isEmpty(mixed ...$args): mixed
+function isEmpty(mixed $value): bool
 {
-    $_isEmpty = static function ($value): bool {
-        return equals($value, emptyVal($value)) === true;
-    };
-
-    return curry1($_isEmpty)(...$args);
+    return equals($value, emptyVal($value));
 }
 
 /**
  * Whether the value is `null`.
  *
- * Signature: `isNil($value): bool`, curried.
- *
  * @category Type
  */
-function isNil(mixed ...$args): mixed
+function isNil(mixed $value): bool
 {
-    $_isNil = static function ($value): bool {
-        return $value === null;
-    };
-
-    return curry1($_isNil)(...$args);
+    return $value === null;
 }
 
 /**
  * Returns a string made by inserting the separator between each element and concatenating all the elements into a
  * single string.
  *
- * Signature: `join(string $separator, array $list)`, curried.
+ * @param array<mixed> $list
  *
  * @category List
  */
-function join(mixed ...$args): mixed
+function join(string $separator, array $list): string
 {
-    $_join = static function (string $separator, array $list) {
-        return implode($separator, $list);
-    };
-
-    return curry2($_join)(...$args);
+    return implode($separator, $list);
 }
 
 /**
  * The keys of an array, or the names of an object's public properties.
  *
- * Signature: `keys(array|object $item)`, curried.
+ * @param array<mixed>|object $item
+ *
+ * @return list<array-key>
  *
  * @category Object
  */
-function keys(mixed ...$args): mixed
+function keys(array|object $item): array
 {
-    $_keys = static function (array|object $item) {
-        return array_keys(is_object($item) ? get_object_vars($item) : $item);
-    };
-
-    return curry1($_keys)(...$args);
+    return array_keys(is_object($item) ? get_object_vars($item) : $item);
 }
 
 /**
  * The last element of a list (`null` if empty) or the last character of a string.
  *
- * Signature: `last(array|string $list)`, curried.
+ * @param array<mixed>|string $list
  *
  * @category List
  */
-function last(mixed ...$args): mixed
+function last(array|string $list): mixed
 {
-    $_last = static function (array|string $list) {
-        if (is_string($list)) {
-            return substr($list, -1);
-        }
+    if (is_string($list)) {
+        return substr($list, -1);
+    }
 
-        if ($list === []) {
-            return null;
-        }
+    if ($list === []) {
+        return null;
+    }
 
-        return $list[array_key_last($list)];
-    };
-
-    return curry1($_last)(...$args);
+    return $list[array_key_last($list)];
 }
 
 /**
  * `$a && $b`.
  *
- * Signature: `logicAnd($a, $b)`, curried.
- *
  * @category Logic
  */
-function logicAnd(mixed ...$args): mixed
+function logicAnd(mixed $a, mixed $b): bool
 {
-    $_and = static function ($a, $b) {
-        return $a && $b;
-    };
-
-    return curry2($_and)(...$args);
+    return $a && $b;
 }
 
 /**
  * `$a || $b`.
  *
- * Signature: `logicOr($a, $b)`, curried.
- *
  * @category Logic
  */
-function logicOr(mixed ...$args): mixed
+function logicOr(mixed $a, mixed $b): bool
 {
-    $_or = static function ($a, $b) {
-        return $a || $b;
-    };
-
-    return curry2($_or)(...$args);
+    return $a || $b;
 }
 
 /**
  * `$a xor $b`.
  *
- * Signature: `logicXor($a, $b)`, curried.
- *
  * @category Logic
  */
-function logicXor(mixed ...$args): mixed
+function logicXor(mixed $a, mixed $b): bool
 {
-    $_xor = static function ($a, $b) {
-        return $a xor $b;
-    };
-
-    return curry2($_xor)(...$args);
+    return $a xor $b;
 }
 
 /**
- * `$a < $b`. When curried, `lt(5)` reads "5 is less than …", i.e. "… is greater than 5".
- *
- * Signature: `lt($a, $b): bool`, curried.
+ * `$a < $b`. With a placeholder, `lt(?, 5)` is "… is less than 5".
  *
  * @category Relation
  */
-function lt(mixed ...$args): mixed
+function lt(mixed $a, mixed $b): bool
 {
-    $_lt = static function ($a, $b): bool {
-        return $a < $b;
-    };
-
-    return curry2($_lt)(...$args);
+    return $a < $b;
 }
 
 /**
  * `$a <= $b`.
  *
- * Signature: `lte($a, $b): bool`, curried.
- *
  * @category Relation
  */
-function lte(mixed ...$args): mixed
+function lte(mixed $a, mixed $b): bool
 {
-    $_lte = static function ($a, $b): bool {
-        return $a <= $b;
-    };
-
-    return curry2($_lte)(...$args);
+    return $a <= $b;
 }
 
 /**
  * Applies the function to every value of the list. Keys are preserved, `null` returns `[]`. The function only
  * receives the value.
  *
- * Signature: `map(callable $fn, array|null $list)`, curried.
+ * @param callable(V): R   $fn
+ * @param array<K, V>|null $list
  *
+ * @return array<K, R>
+ *
+ * @template K of array-key = never
+ * @template V = never
+ * @template R = mixed
  * @category List
  */
-function map(mixed ...$args): mixed
+function map(callable $fn, array|null $list): array
 {
-    $_map = static function (callable $fn, array|null $list) {
-        if (!is_array($list)) {
-            return [];
-        }
+    if ($list === null) {
+        return [];
+    }
 
-        return array_map($fn, $list);
-    };
-
-    return curry2($_map)(...$args);
+    return array_map($fn, $list);
 }
 
 /**
  * The larger of two values.
  *
- * Signature: `max($a, $b)`, curried.
+ * @param T $a
+ * @param T $b
  *
+ * @return T
+ *
+ * @template T
  * @category Relation
  */
-function max(mixed ...$args): mixed
+function max(mixed $a, mixed $b): mixed
 {
-    $_max = static function ($a, $b) {
-        return $b > $a ? $b : $a;
-    };
-
-    return curry2($_max)(...$args);
+    return $b > $a ? $b : $a;
 }
 
 /**
  * The arithmetic mean of the list, `NAN` for an empty list.
  *
- * Signature: `mean(array $list)`, curried.
+ * @param array<int|float> $list
  *
  * @category Math
  */
-function mean(mixed ...$args): mixed
+function mean(array $list): float
 {
-    $_mean = static function (array $list) {
-        return fdiv(array_sum($list), count($list));
-    };
-
-    return curry1($_mean)(...$args);
+    return fdiv(array_sum($list), count($list));
 }
 
 /**
- * Curried array_merge() of two arrays: for string keys the value of $b wins, numeric keys are appended.
- * Use concat() to join lists.
+ * `array_merge()` of two arrays: for string keys the value of $b wins, numeric keys are appended. Use `concat()` to
+ * join lists.
  *
- * Signature: `merge(array $a, array $b)`, curried.
+ * @param array<mixed> $a
+ * @param array<mixed> $b
+ *
+ * @return array<mixed>
  *
  * @category List
  */
-function merge(mixed ...$args): mixed
+function merge(array $a, array $b): array
 {
-    $_merge = static function (array $a, array $b) {
-        return array_merge($a, $b);
-    };
-
-    return curry2($_merge)(...$args);
+    return array_merge($a, $b);
 }
 
 /**
  * The smaller of two values.
  *
- * Signature: `min($a, $b)`, curried.
+ * @param T $a
+ * @param T $b
  *
+ * @return T
+ *
+ * @template T
  * @category Relation
  */
-function min(mixed ...$args): mixed
+function min(mixed $a, mixed $b): mixed
 {
-    $_min = static function ($a, $b) {
-        return $b < $a ? $b : $a;
-    };
-
-    return curry2($_min)(...$args);
+    return $b < $a ? $b : $a;
 }
 
 /**
- * Multiplies two numbers. Equivalent to `a * b` but curried.
+ * Multiplies two numbers. `null`, `false` and `''` count as 0; numbers keep their type, so `multiply(0.0, 1.5)` is
+ * `0.0`.
  *
- * Signature: `multiply($a, $b)`, curried.
+ * @category Math
  */
-function multiply(mixed ...$args): mixed
+function multiply(mixed $a, mixed $b): int|float
 {
-    $_multiply = static function ($a, $b) {
-        // null, false and '' count as 0; numbers keep their type, so multiply(0.0, 1.5) is 0.0
-        $orZero = static fn ($value) => $value === null || $value === false || $value === '' ? 0 : $value;
+    $orZero = static fn ($value) => $value === null || $value === false || $value === '' ? 0 : $value;
 
-        return $orZero($a) * $orZero($b);
-    };
-
-    return curry2($_multiply)(...$args);
+    return $orZero($a) * $orZero($b);
 }
 
 /**
- * Returns `true` if no elements of the list match the predicate, `false` otherwise.
- * Function "breaks early"
+ * Returns `true` if no elements of the list match the predicate, `false` otherwise. Stops at the first match.
  *
- * Signature: `none(callable $fn, array $list)`, curried.
+ * @param callable(mixed): mixed $predicate
+ * @param array<mixed>           $list
  *
  * @category List
  */
-function none(mixed ...$args): mixed
+function none(callable $predicate, array $list): bool
 {
-    $_none = static function (callable $fn, array $list) {
-        return all(complement($fn), $list);
-    };
-
-    return curry2($_none)(...$args);
+    return !any($predicate, $list);
 }
 
 /**
- * A function that returns the `!` of its argument. It will return `true` when
- * passed false-y value, and `false` when passed a truth-y one.
- *
- * Signature: `not($value)`, curried.
+ * `!$value`: `true` for falsy values, `false` for truthy ones.
  *
  * @category Logic
  */
-function not(mixed ...$args): mixed
+function not(mixed $value): bool
 {
-    $_not = static function ($value) {
-        return !$value;
-    };
-
-    return curry1($_not)(...$args);
+    return !$value;
 }
 
 /**
  * The element at the position (ignoring keys), counted from the end if negative. `null` if out of range.
  * For strings the character at the position, `''` if out of range.
  *
- * Signature: `nth(int $offset, array|string $list)`, curried.
+ * @param array<mixed>|string $list
  *
  * @category List
  */
-function nth(mixed ...$args): mixed
+function nth(int $offset, array|string $list): mixed
 {
-    $_nth = static function (int $offset, array|string $list) {
-        if (is_string($list)) {
-            return substr($list, $offset, 1);
-        }
+    if (is_string($list)) {
+        return substr($list, $offset, 1);
+    }
 
-        $values = array_values($list);
-        $index = $offset < 0 ? count($values) + $offset : $offset;
+    $values = array_values($list);
+    $index = $offset < 0 ? count($values) + $offset : $offset;
 
-        return $values[$index] ?? null;
-    };
-
-    return curry2($_nth)(...$args);
+    return $values[$index] ?? null;
 }
 
 /**
  * A copy of the array without the given keys.
  *
- * Signature: `omit(array $keys, array $array)`, curried.
+ * @param array<array-key> $keys
+ * @param array<K, V>      $array
  *
+ * @return array<K, V>
+ *
+ * @template K of array-key
+ * @template V
  * @category Object
  */
-function omit(mixed ...$args): mixed
+function omit(array $keys, array $array): array
 {
-    $_omit = static function (array $keys, array $list) {
-        foreach ($keys as $key) {
-            unset($list[$key]);
-        }
+    foreach ($keys as $key) {
+        unset($array[$key]);
+    }
 
-        return $list;
-    };
-
-    return curry2($_omit)(...$args);
+    return $array;
 }
 
 /**
  * Splits the list into the elements matching the predicate and the others: `[$matching, $others]`.
  * Keys are preserved; the key is passed as second argument if the predicate accepts it.
  *
- * Signature: `partition(callable $predicate, array $list)`, curried.
+ * @param (callable(V): mixed)|(callable(V, K): mixed) $predicate
+ * @param array<K, V>                                  $list
  *
+ * @return array{array<K, V>, array<K, V>}
+ *
+ * @template K of array-key
+ * @template V
  * @category List
  */
-function partition(mixed ...$args): mixed
+function partition(callable $predicate, array $list): array
 {
-    $_partition = static function (callable $predicate, array $list) {
-        $withKey = _acceptsArgs($predicate, 2);
-        $matching = [];
-        $others = [];
-        foreach ($list as $key => $value) {
-            if ($withKey ? $predicate($value, $key) : $predicate($value)) {
-                $matching[$key] = $value;
-            } else {
-                $others[$key] = $value;
-            }
+    $withKey = _acceptsArgs($predicate, 2);
+    $matching = [];
+    $others = [];
+    foreach ($list as $key => $value) {
+        if ($withKey ? $predicate($value, $key) : $predicate($value)) {
+            $matching[$key] = $value;
+        } else {
+            $others[$key] = $value;
         }
+    }
 
-        return [$matching, $others];
-    };
-
-    return curry2($_partition)(...$args);
+    return [$matching, $others];
 }
 
 /**
  * The nested value at the path, `null` if any key on the way is missing.
  *
- * Signature: `path(array $path, $array)`, curried.
+ * @param array<array-key> $path
  *
  * @category Object
  * @example  path(['address', 'city'], $user);
  */
-function path(mixed ...$args): mixed
+function path(array $path, mixed $item): mixed
 {
-    $_path = static function (array $pathArray, $obj) {
-        return paths([$pathArray], $obj)[0];
-    };
-
-    return curry2($_path)(...$args);
+    return paths([$path], $item)[0];
 }
 
 /**
- * Whether the nested value equals the given value (in `equals()` terms). Argument order like Ramda >= 0.29:
- * value first.
+ * Whether the nested value equals the given value (in `equals()` terms). Value first, like Ramda >= 0.29.
  *
- * Signature: `pathEq($value, array $pathArray, $item): bool`, curried.
+ * @param array<array-key> $path
  *
  * @category Relation
  * @example  pathEq('Berlin', ['address', 'city'], $user);
  */
-function pathEq(mixed ...$args): mixed
+function pathEq(mixed $value, array $path, mixed $item): bool
 {
-    $_pathEq = static function ($value, array $pathArray, $item): bool {
-        return equals(path($pathArray, $item), $value) === true;
-    };
-
-    return curry3($_pathEq)(...$args);
+    return equals(path($path, $item), $value);
 }
 
 /**
  * The nested value, or the default if it is missing or `null`.
  *
- * Signature: `pathOr($default, array $pathArray, $item)`, curried.
+ * @param array<array-key> $path
  *
  * @category Object
  */
-function pathOr(mixed ...$args): mixed
+function pathOr(mixed $default, array $path, mixed $item): mixed
 {
-    $_pathOr = static function ($default, array $pathArray, $item) {
-        return path($pathArray, $item) ?? $default;
-    };
-
-    return curry3($_pathOr)(...$args);
+    return path($path, $item) ?? $default;
 }
 
 /**
  * Several `path()` lookups at once, returns their values as a list.
  *
- * Signature: `paths(array $paths, $array)`, curried.
+ * @param array<array<array-key>> $paths
+ *
+ * @return array<mixed>
  *
  * @category Object
  */
-function paths(mixed ...$args): mixed
+function paths(array $paths, mixed $item): array
 {
-    $_paths = static function (array $pathsArray, $obj) {
-        return array_map(
-            static function ($paths) use ($obj) {
-                $val = $obj;
-                foreach ($paths as $path) {
-                    if (!is_array($val) || !array_key_exists($path, $val)) {
-                        return null;
-                    }
-
-                    $val = $val[$path];
+    return array_map(
+        static function (array $path) use ($item) {
+            $value = $item;
+            foreach ($path as $key) {
+                if (!is_array($value) || !array_key_exists($key, $value)) {
+                    return null;
                 }
 
-                return $val;
-            },
-            $pathsArray,
-        );
-    };
+                $value = $value[$key];
+            }
 
-    return curry2($_paths)(...$args);
+            return $value;
+        },
+        $paths,
+    );
 }
 
 /**
  * Whether the nested value satisfies the predicate.
  *
- * Signature: `pathSatisfies(callable $predicate, array $pathArray, $item): bool`, curried.
+ * @param array<array-key> $path
  *
  * @category Logic
- * @example  pathSatisfies(isEmpty(), ['address', 'zip']);
+ * @example  pathSatisfies(isEmpty(...), ['address', 'zip'], $user);
  */
-function pathSatisfies(mixed ...$args): mixed
+function pathSatisfies(callable $predicate, array $path, mixed $item): bool
 {
-    $_pathSatisfies = static function (callable $predicate, array $pathArray, $item): bool {
-        return (bool) $predicate(path($pathArray, $item));
-    };
-
-    return curry3($_pathSatisfies)(...$args);
+    return (bool) $predicate(path($path, $item));
 }
 
 /**
  * A copy of the array with the given keys only, in the order of the keys. Missing keys are ignored.
  *
- * Signature: `pick(array $keys, array $array)`, curried.
+ * @param array<array-key> $keys
+ * @param array<K, V>      $array
  *
+ * @return array<K, V>
+ *
+ * @template K of array-key
+ * @template V
  * @category Object
  */
-function pick(mixed ...$args): mixed
+function pick(array $keys, array $array): array
 {
-    $_pick = static function (array $keys, array $array) {
-        $result = [];
-        foreach ($keys as $key) {
-            if (!array_key_exists($key, $array)) {
-                continue;
-            }
-
-            $result[$key] = $array[$key];
+    $result = [];
+    foreach ($keys as $key) {
+        if (!array_key_exists($key, $array)) {
+            continue;
         }
 
-        return $result;
-    };
+        $result[$key] = $array[$key];
+    }
 
-    return curry2($_pick)(...$args);
+    return $result;
 }
 
 /**
  * Left-to-right function composition. The first function may have any arity, the others must be unary. The result
- * has the arity of the first function. Throws InvalidArgumentException without functions.
+ * requires as many arguments as the first function. Throws InvalidArgumentException without functions. To run a
+ * value through functions right away, use the pipe operator: `$value |> trim(...) |> strtoupper(...)`.
  *
  * @category Function
+ * @example  pipe(trim(...), strtoupper(...))(' a '); // 'A'
  */
-function pipe(mixed ...$args): mixed
+function pipe(callable ...$fns): Closure
 {
-    if ($args === []) {
+    if ($fns === []) {
         throw new InvalidArgumentException('pipe requires at least one argument');
     }
 
+    $first = array_shift($fns);
+
     return _arity(
-        _getArity($args[0]),
-        reduce('\Fnc\_pipe', $args[0], tail($args)),
+        _getArity($first),
+        static function (mixed ...$args) use ($first, $fns) {
+            $result = $first(...$args);
+            foreach ($fns as $fn) {
+                $result = $fn($result);
+            }
+
+            return $result;
+        },
     );
 }
 
 /**
  * The given key (or public property) of each element, see `prop()`. Keys are preserved.
  *
- * Signature: `pluck(string|int $key, array $list)`, curried.
+ * @param array<K, mixed> $list
  *
+ * @return array<K, mixed>
+ *
+ * @template K of array-key
  * @category List
  * @example  pluck('name', [['name' => 'Ada'], ['name' => 'Linus']]); // ['Ada', 'Linus']
  */
-function pluck(mixed ...$args): mixed
+function pluck(string|int $key, array $list): array
 {
-    $_pluck = static function (string|int $key, array $list) {
-        return array_map(static fn ($item) => prop($key, $item), $list);
-    };
-
-    return curry2($_pluck)(...$args);
+    return array_map(static fn ($item) => prop($key, $item), $list);
 }
 
 /**
  * The value of an array key or of a public object property, `null` if it doesn't exist. Works on lists as well.
  *
- * Signature: `prop($key, $item)`, curried.
- *
  * @category Object
- * @example  prop('x', ["x" => 100]); // 100
- * @example  prop('0', [100]); // 100
+ * @example  prop('x', ['x' => 100]); // 100
+ * @example  map(prop('name', ?), $users);
  */
-function prop(mixed ...$args): mixed
+function prop(string|int $key, mixed $item): mixed
 {
-    $_prop = static function ($key, $item) {
-        if (is_array($item)) {
-            if (array_key_exists($key, $item)) {
-                return $item[$key];
-            }
+    if (is_array($item) && array_key_exists($key, $item)) {
+        return $item[$key];
+    }
+
+    if (is_object($item)) {
+        $vars = get_object_vars($item);
+        if (array_key_exists($key, $vars)) {
+            return $vars[$key];
         }
+    }
 
-        if (is_object($item)) {
-            $vars = get_object_vars($item);
-            if (array_key_exists($key, $vars)) {
-                return $vars[$key];
-            }
-        }
-
-        return null;
-    };
-
-    return curry2($_prop)(...$args);
+    return null;
 }
 
 /**
- * Whether the property equals the given value (in `equals()` terms). Argument order like Ramda >= 0.29:
- * value first.
- *
- * Signature: `propEq($value, string|int $key, $item): bool`, curried.
+ * Whether the property equals the given value (in `equals()` terms). Value first, like Ramda >= 0.29.
  *
  * @category Relation
- * @example  filter(propEq('active', 'status'), $users);
+ * @example  filter(propEq('active', 'status', ?), $users);
  */
-function propEq(mixed ...$args): mixed
+function propEq(mixed $value, string|int $key, mixed $item): bool
 {
-    $_propEq = static function ($value, string|int $key, $item): bool {
-        return equals(prop($key, $item), $value) === true;
-    };
-
-    return curry3($_propEq)(...$args);
+    return equals(prop($key, $item), $value);
 }
 
 /**
  * The property, or the default if it is missing or `null`.
  *
- * Signature: `propOr($default, string|int $key, $item)`, curried.
- *
  * @category Object
  */
-function propOr(mixed ...$args): mixed
+function propOr(mixed $default, string|int $key, mixed $item): mixed
 {
-    $_propOr = static function ($default, string|int $key, $item) {
-        return prop($key, $item) ?? $default;
-    };
-
-    return curry3($_propOr)(...$args);
+    return prop($key, $item) ?? $default;
 }
 
 /**
  * Whether the property satisfies the predicate.
  *
- * Signature: `propSatisfies(callable $predicate, string|int $key, $item): bool`, curried.
- *
  * @category Logic
- * @example  ifElse(propSatisfies(isEmpty(), 'rim_brand_id'), always(null), applySpec([...]));
+ * @example  ifElse(propSatisfies(isEmpty(...), 'rim_brand_id', ?), always(null), applySpec([...]));
  */
-function propSatisfies(mixed ...$args): mixed
+function propSatisfies(callable $predicate, string|int $key, mixed $item): bool
 {
-    $_propSatisfies = static function (callable $predicate, string|int $key, $item): bool {
-        return (bool) $predicate(prop($key, $item));
-    };
-
-    return curry3($_propSatisfies)(...$args);
+    return (bool) $predicate(prop($key, $item));
 }
 
 /**
- * Returns a single item by iterating through the list, successively calling the iterator
- * function and passing it an accumulator value and the current value from the array, and
- * then passing the result to the next call.
+ * Reduces the list to a single value: calls the function with the accumulator and each value (and the key, if the
+ * function accepts a third argument) and passes the result on as the next accumulator.
  *
- * The iterator function receives (accumulator, value) and, if it accepts a third argument, the key.
+ * @param (callable(A, V): A)|(callable(A, V, K): A) $fn
+ * @param A                                          $acc
+ * @param array<K, V>                                $list
  *
- * Signature: `reduce(callable $fn, $acc, array $list)`, curried.
+ * @return A
  *
+ * @template A
+ * @template K of array-key
+ * @template V
  * @category List
  */
-function reduce(mixed ...$args): mixed
+function reduce(callable $fn, mixed $acc, array $list): mixed
 {
-    $_reduce = static function (callable $fn, $acc, array $list) {
-        $withKey = _acceptsArgs($fn, 3);
-        foreach ($list as $key => $value) {
-            $acc = $withKey ? $fn($acc, $value, $key) : $fn($acc, $value);
-        }
+    $withKey = _acceptsArgs($fn, 3);
+    foreach ($list as $key => $value) {
+        $acc = $withKey ? $fn($acc, $value, $key) : $fn($acc, $value);
+    }
 
-        return $acc;
-    };
-
-    return curry3($_reduce)(...$args);
+    return $acc;
 }
 
 /**
  * The complement of `filter()`: keeps the elements not matching the predicate. Keys are preserved; the key is
  * passed as second argument if the predicate accepts it.
  *
- * Signature: `reject(callable $predicate, array $list)`, curried.
+ * @param (callable(V): mixed)|(callable(V, K): mixed) $predicate
+ * @param array<K, V>                                  $list
  *
+ * @return array<K, V>
+ *
+ * @template K of array-key
+ * @template V
  * @category List
  */
-function reject(mixed ...$args): mixed
+function reject(callable $predicate, array $list): array
 {
-    $_reject = static function (callable $predicate, array $list) {
-        return partition($predicate, $list)[1];
-    };
-
-    return curry2($_reject)(...$args);
+    return partition($predicate, $list)[1];
 }
 
 /**
@@ -1946,403 +1485,327 @@ function reject(mixed ...$args): mixed
  *   functions as closures (`trim(...)`), and wrap array callables (`[$object, 'method']`) in a closure.
  *
  * All other keys of the record are kept. Keys of the spec win over remaining record keys; with the former
- * `converge(merge(), [applySpec(...), omit(...)])` pattern a remaining record key won instead. An `omit()` after
+ * `converge(merge(...), [applySpec(...), omit(...)])` pattern a remaining record key won instead. An `omit()` after
  * `remap()` (e.g. in `pipe()`) runs on the result, so it must not list keys the spec produces.
  *
- * Signature: `remap(array $spec, array $record)`, curried.
+ * @param array<mixed> $spec
+ * @param array<mixed> $record
+ *
+ * @return array<mixed>
  *
  * @category Object
  * @example  remap(['wheelhotel' => ['id' => 'wheelhotel_id', 'name' => 'wheelhotel_name']], $record);
  */
-function remap(mixed ...$args): mixed
+function remap(array $spec, array $record): array
 {
-    $_remap = static function (array $spec, array $record) {
-        $moved = [];
-        $build = static function (array $spec) use (&$build, &$moved, $record): array {
-            $result = [];
-            foreach ($spec as $key => $value) {
-                if (is_string($value)) {
-                    $result[$key] = $record[$value] ?? null;
-                    $moved[$value] = true;
-                } elseif (is_array($value)) {
-                    $result[$key] = $build($value);
-                } elseif (is_callable($value)) {
-                    $result[$key] = $value($record);
-                } else {
-                    throw new InvalidArgumentException('remap spec values must be strings, arrays or callables');
-                }
+    $moved = [];
+    $build = static function (array $spec) use (&$build, &$moved, $record): array {
+        $result = [];
+        foreach ($spec as $key => $value) {
+            if (is_string($value)) {
+                $result[$key] = $record[$value] ?? null;
+                $moved[$value] = true;
+            } elseif (is_array($value)) {
+                $result[$key] = $build($value);
+            } elseif (is_callable($value)) {
+                $result[$key] = $value($record);
+            } else {
+                throw new InvalidArgumentException('remap spec values must be strings, arrays or callables');
             }
+        }
 
-            return $result;
-        };
-
-        $result = $build($spec);
-
-        return $result + array_diff_key($record, $moved);
+        return $result;
     };
 
-    return curry2($_remap)(...$args);
+    $result = $build($spec);
+
+    return $result + array_diff_key($record, $moved);
 }
 
 /**
- * Reverses the given list
+ * Reverses the list. String keys are kept, numeric keys renumbered, like `array_reverse()`.
  *
- * Signature: `reverse(array $list)`, curried.
+ * @param array<mixed> $list
+ *
+ * @return array<mixed>
  *
  * @category List
  */
-function reverse(mixed ...$args): mixed
+function reverse(array $list): array
 {
-    $_reverse = static function (array $list) {
-        return array_reverse($list);
-    };
-
-    return curry1($_reverse)(...$args);
+    return array_reverse($list);
 }
 
 /**
  * The elements or characters from `$from` (inclusive) to `$to` (exclusive), like Ramda's slice. Negative
  * indices count from the end, `null` as `$to` means "until the end". Lists keep string keys like `array_slice()`.
  *
- * Signature: `slice(int $from, int|null $to, array|string $list)`, curried.
+ * @param array<mixed>|string $list
+ *
+ * @return array<mixed>|string
  *
  * @category List
  * @example  slice(11, 19, '1753-01-01 08:15:00.000'); // '08:15:00'
  */
-function slice(mixed ...$args): mixed
+function slice(int $from, int|null $to, array|string $list): array|string
 {
-    $_slice = static function (int $from, int|null $to, array|string $list) {
-        $length = is_string($list) ? strlen($list) : count($list);
-        $start = $from < 0 ? phpMax($length + $from, 0) : phpMin($from, $length);
-        $end = $to === null ? $length : ($to < 0 ? phpMax($length + $to, 0) : phpMin($to, $length));
-        $count = phpMax($end - $start, 0);
+    $length = is_string($list) ? strlen($list) : count($list);
+    $start = $from < 0 ? phpMax($length + $from, 0) : phpMin($from, $length);
+    $end = $to === null ? $length : ($to < 0 ? phpMax($length + $to, 0) : phpMin($to, $length));
+    $count = phpMax($end - $start, 0);
 
-        return is_string($list) ? substr($list, $start, $count) : array_slice($list, $start, $count);
-    };
-
-    return curry3($_slice)(...$args);
+    return is_string($list) ? substr($list, $start, $count) : array_slice($list, $start, $count);
 }
 
 /**
  * Sorts the list by the values the function returns, ascending (stable, compared with `<=>`). Returns a list.
  *
- * Signature: `sortBy(callable $fn, array $list)`, curried.
+ * @param callable(V): mixed $fn
+ * @param array<V>           $list
  *
+ * @return list<V>
+ *
+ * @template V
  * @category List
- * @example  sortBy(prop('age'), $users);
+ * @example  sortBy(prop('age', ?), $users);
  */
-function sortBy(mixed ...$args): mixed
+function sortBy(callable $fn, array $list): array
 {
-    $_sortBy = static function (callable $fn, array $list) {
-        $decorated = array_map(static fn ($value) => [$fn($value), $value], array_values($list));
-        usort($decorated, static fn (array $a, array $b) => $a[0] <=> $b[0]);
+    $decorated = array_map(static fn ($value) => [$fn($value), $value], array_values($list));
+    usort($decorated, static fn (array $a, array $b) => $a[0] <=> $b[0]);
 
-        return array_column($decorated, 1);
-    };
-
-    return curry2($_sortBy)(...$args);
+    return array_column($decorated, 1);
 }
 
 /**
  * Sorts the list by the comparators: the first one decides, the next ones break ties (stable). Use with
  * `ascend()` and `descend()`. Returns a list.
  *
- * Signature: `sortWith(array $comparators, array $list)`, curried.
+ * @param array<callable(V, V): int> $comparators
+ * @param array<V>                   $list
  *
+ * @return list<V>
+ *
+ * @template V
  * @category List
- * @example  sortWith([ascend(prop('carhouse_id')), ascend(prop('id'))], $records);
+ * @example  sortWith([ascend(prop('carhouse_id', ?)), ascend(prop('id', ?))], $records);
  */
-function sortWith(mixed ...$args): mixed
+function sortWith(array $comparators, array $list): array
 {
-    $_sortWith = static function (array $comparators, array $list) {
-        $list = array_values($list);
-        usort($list, static function ($a, $b) use ($comparators): int {
-            foreach ($comparators as $comparator) {
-                $result = $comparator($a, $b);
-                if ($result !== 0) {
-                    return $result;
-                }
+    $list = array_values($list);
+    usort($list, static function ($a, $b) use ($comparators): int {
+        foreach ($comparators as $comparator) {
+            $result = $comparator($a, $b);
+            if ($result !== 0) {
+                return $result;
             }
+        }
 
-            return 0;
-        });
+        return 0;
+    });
 
-        return $list;
-    };
-
-    return curry2($_sortWith)(...$args);
+    return $list;
 }
 
 /**
- * Splits a string into an array of strings based on the given separator.
+ * Splits a string into a list of strings at the separator.
  *
- * Signature: `split(string $separator, string $list)`, curried.
+ * @return list<string>
  *
  * @category List
  */
-function split(mixed ...$args): mixed
+function split(string $separator, string $string): array
 {
-    $_split = static function (string $separator, string $list) {
-        if ($separator === '') {
-            throw new InvalidArgumentException('split requires a non-empty separator');
-        }
+    if ($separator === '') {
+        throw new InvalidArgumentException('split requires a non-empty separator');
+    }
 
-        return explode($separator, $list);
-    };
-
-    return curry2($_split)(...$args);
+    return explode($separator, $string);
 }
 
 /**
  * `$a - $b`. `null` counts as 0.
  *
- * Signature: `subtract($a, $b)`, curried.
- *
  * @category Math
  */
-function subtract(mixed ...$args): mixed
+function subtract(mixed $a, mixed $b): int|float
 {
-    $_subtract = static function ($a, $b) {
-        return ($a ?? 0) - ($b ?? 0);
-    };
-
-    return curry2($_subtract)(...$args);
+    return ($a ?? 0) - ($b ?? 0);
 }
 
 /**
  * Adds together all the elements of a list. Returns 0 for an empty list.
  *
- * Signature: `sum(array $elements)`, curried.
+ * @param array<mixed> $list
+ *
+ * @category Math
  */
-function sum(mixed ...$args): mixed
+function sum(array $list): int|float
 {
-    $_sum = static function (array $elements) {
-        return array_sum($elements);
-    };
-
-    return curry1($_sum)(...$args);
+    return array_sum($list);
 }
 
 /**
  * All but the first element of a list (string keys are preserved, numeric keys renumbered like
  * `array_shift()`) or all but the first character of a string.
  *
- * Signature: `tail(array|string $list)`, curried.
+ * @param array<mixed>|string $list
+ *
+ * @return array<mixed>|string
  *
  * @category List
  */
-function tail(mixed ...$args): mixed
+function tail(array|string $list): array|string
 {
-    $_tail = static function (array|string $list) {
-        if (is_string($list)) {
-            return substr($list, 1);
-        }
+    if (is_string($list)) {
+        return substr($list, 1);
+    }
 
-        array_shift($list);
+    array_shift($list);
 
-        return $list;
-    };
-
-    return curry1($_tail)(...$args);
+    return $list;
 }
 
 /**
  * The first `$count` elements of a list (like `array_slice()`: string keys are kept, numeric keys renumbered) or
  * characters of a string.
  *
- * Signature: `take($count, $list)`, curried.
+ * @param array<mixed>|string $list
+ *
+ * @return array<mixed>|string
  *
  * @category List
  */
-function take(mixed ...$args): mixed
+function take(int $count, array|string $list): array|string
 {
-    $_take = static function ($count, $list) {
-        if (is_array($list)) {
-            return array_slice($list, 0, $count);
-        }
+    if (is_array($list)) {
+        return array_slice($list, 0, $count);
+    }
 
-        return substr($list, 0, $count);
-    };
-
-    return curry2($_take)(...$args);
+    return substr($list, 0, $count);
 }
 
 /**
- * Calls the function with the value and returns the value. Useful for debugging inside `pipe()`.
+ * Calls the function with the value and returns the value. Useful for debugging inside `pipe()` or `|>`.
  *
- * Signature: `tap(callable $fn, $value)`, curried.
+ * @param callable(T): mixed $fn
+ * @param T                  $value
  *
+ * @return T
+ *
+ * @template T
  * @category Function
- * @example  pipe(map($fn), tap('var_dump'), filter($predicate));
+ * @example  $list |> map($fn, ?) |> tap(var_dump(...), ?) |> filter($predicate, ?);
  */
-function tap(mixed ...$args): mixed
+function tap(callable $fn, mixed $value): mixed
 {
-    $_tap = static function (callable $fn, $value) {
-        $fn($value);
+    $fn($value);
 
-        return $value;
-    };
-
-    return curry2($_tap)(...$args);
+    return $value;
 }
 
 /**
- * Takes a function, which takes a single array argument, and returns
- * a function which:
+ * Returns a function that takes any number of arguments and passes them to the given function as one array
+ * (named arguments keep their names as keys).
  *
- *   - takes any number of positional arguments;
- *   - passes these arguments to `fn` as an array; and
- *   - returns the result.
+ * @param callable(array<mixed>): mixed $fn
+ *
+ * @return Closure(mixed...): mixed
  *
  * @category Function
  */
-function unapply(callable $fn): callable
+function unapply(callable $fn): Closure
 {
-    return static function (...$args) use ($fn) {
-        return $fn($args);
-    };
+    return static fn (mixed ...$args) => $fn($args);
 }
 
 /**
  * The list without duplicates (in `equals()` terms), keeping the first occurrence. Returns a list.
  * Compares each element with all kept ones (quadratic), so use array_unique() for large lists of scalars.
  *
- * Signature: `uniq(array $list)`, curried.
+ * @param array<V> $list
  *
+ * @return list<V>
+ *
+ * @template V
  * @category List
  */
-function uniq(mixed ...$args): mixed
+function uniq(array $list): array
 {
-    $_uniq = static function (array $list) {
-        $result = [];
-        foreach ($list as $value) {
-            foreach ($result as $existing) {
-                if (equals($existing, $value)) {
-                    continue 2;
-                }
+    $result = [];
+    foreach ($list as $value) {
+        foreach ($result as $existing) {
+            if (equals($existing, $value)) {
+                continue 2;
             }
-
-            $result[] = $value;
         }
 
-        return $result;
-    };
+        $result[] = $value;
+    }
 
-    return curry1($_uniq)(...$args);
+    return $result;
 }
 
 /**
  * Returns the value unchanged if the predicate is satisfied, otherwise the result of the function.
  *
- * Signature: `unless(callable $predicate, callable $fn, $value)`, curried.
- *
  * @category Logic
- * @example  unless(isNil(), 'trim'); // trims strings, keeps null
+ * @example  unless(isNil(...), trim(...), $value); // trims strings, keeps null
  */
-function unless(mixed ...$args): mixed
+function unless(callable $predicate, callable $fn, mixed $value): mixed
 {
-    $_unless = static function (callable $predicate, callable $fn, $value) {
-        return $predicate($value) ? $value : $fn($value);
-    };
-
-    return curry3($_unless)(...$args);
+    return $predicate($value) ? $value : $fn($value);
 }
 
 /**
  * The values of an array as list, or the values of an object's public properties.
  *
- * Signature: `values(array|object $item)`, curried.
+ * @param array<mixed>|object $item
+ *
+ * @return list<mixed>
  *
  * @category Object
  */
-function values(mixed ...$args): mixed
+function values(array|object $item): array
 {
-    $_values = static function (array|object $item) {
-        return array_values(is_object($item) ? get_object_vars($item) : $item);
-    };
-
-    return curry1($_values)(...$args);
+    return array_values(is_object($item) ? get_object_vars($item) : $item);
 }
 
 /**
  * Returns the result of the function if the predicate is satisfied, otherwise the value unchanged.
  *
- * Signature: `when(callable $predicate, callable $fn, $value)`, curried.
- *
  * @category Logic
- * @example  when(is_string(...), 'trim');
+ * @example  when(is_string(...), trim(...), $value);
  */
-function when(mixed ...$args): mixed
+function when(callable $predicate, callable $fn, mixed $value): mixed
 {
-    $_when = static function (callable $predicate, callable $fn, $value) {
-        return $predicate($value) ? $fn($value) : $value;
-    };
-
-    return curry3($_when)(...$args);
+    return $predicate($value) ? $fn($value) : $value;
 }
 
 /**
- * How many arguments the provided callable expects (arity): the number of its required parameters, like
- * Function.length in JavaScript. Optional and variadic parameters don't count, so currying a callable with optional
- * parameters needs an explicit arity, e.g. curryN(2, $fn).
- *
- * @throws RuntimeException
+ * How many arguments the callable expects (arity): the number of its required parameters, like Function.length in
+ * JavaScript. Optional and variadic parameters don't count. For a partial application like `foo(1, ?)` these are
+ * the placeholders.
  */
-function _getArity(mixed $callable): int
+function _getArity(callable $callable): int
 {
-    if ($callable instanceof Closure) {
-        $arity = _curriedArity($callable);
-        if ($arity !== null) {
-            return $arity;
-        }
-    }
-
     return _reflectCallable($callable)->getNumberOfRequiredParameters();
 }
 
 /**
- * Remembers (with $arity) or looks up (without) the arity of a curried closure. Curried closures read their
- * arguments via func_get_args() and therefore declare no parameters, so reflection can't tell their arity.
- */
-function _curriedArity(Closure $fn, int|null $arity = null): int|null
-{
-    /** @var WeakMap<Closure, int> $arities */
-    static $arities = new WeakMap();
-
-    if ($arity !== null) {
-        $arities[$fn] = $arity;
-
-        return $arity;
-    }
-
-    return $arities[$fn] ?? null;
-}
-
-/**
  * Whether the callable can safely be called with $n arguments without dropping or rejecting them.
- * Internal functions and partial applications (PHP 8.6, `trim(?, ...)`) only count their required parameters, so
- * optional parameters (like trim()'s $characters) don't receive unrelated values.
- *
- * @throws RuntimeException
+ * Internal functions and partial applications (`trim(?, ...)`) only count their required parameters, so optional
+ * parameters (like trim()'s $characters) don't receive unrelated values.
  */
 function _acceptsArgs(callable $callable, int $n): bool
 {
-    // curried closures read their arguments via func_get_args() and declare no parameters
-    if ($callable instanceof Closure) {
-        $arity = _curriedArity($callable);
-        if ($arity !== null) {
-            return $arity >= $n;
-        }
-    }
-
     $r = _reflectCallable($callable);
 
     if ($r->isVariadic()) {
         return true;
     }
 
-    // partial applications (PHP 8.6, e.g. trim(?, ...)) keep the optional parameters of the function they wrap,
-    // which may well be internal, so they get the same treatment
+    // partial applications keep the optional parameters of the function they wrap, which may well be internal
     if ($r->isInternal() || str_starts_with($r->getName(), '{closure:pfa:')) {
         return $r->getNumberOfRequiredParameters() >= $n;
     }
@@ -2350,69 +1813,37 @@ function _acceptsArgs(callable $callable, int $n): bool
     return $r->getNumberOfParameters() >= $n;
 }
 
-/** @throws RuntimeException */
-function _reflectCallable(mixed $callable): ReflectionFunction
+function _reflectCallable(callable $callable): ReflectionFunction
 {
-    if (!is_callable($callable)) {
-        throw new RuntimeException('Could not examine callback');
-    }
-
     return new ReflectionFunction(Closure::fromCallable($callable));
 }
 
 /**
- * Create function with given arity
+ * Wraps the function in a closure with $n required parameters, so that `_getArity()` sees them. All arguments are
+ * passed on.
  *
  * @throws RuntimeException
  */
-function _arity(int $n, callable $fn): callable
+function _arity(int $n, callable $fn): Closure
 {
     // phpcs:disable SlevomatCodingStandard.Functions.UnusedParameter.UnusedParameter
 
-    switch ($n) {
-        case 0:
-            return static fn () => $fn(...func_get_args());
-
-        case 1:
-            return static fn ($a0) => $fn(...func_get_args());
-
-        case 2:
-            return static fn ($a0, $a1) => $fn(...func_get_args());
-
-        case 3:
-            return static fn ($a0, $a1, $a2) => $fn(...func_get_args());
-
-        case 4:
-            return static fn ($a0, $a1, $a2, $a3) => $fn(...func_get_args());
-
-        case 5:
-            return static fn ($a0, $a1, $a2, $a3, $a4) => $fn(...func_get_args());
-
-        case 6:
-            return static fn ($a0, $a1, $a2, $a3, $a4, $a5) => $fn(...func_get_args());
-
-        case 7:
-            return static fn ($a0, $a1, $a2, $a3, $a4, $a5, $a6) => $fn(...func_get_args());
-
-        case 8:
-            return static fn ($a0, $a1, $a2, $a3, $a4, $a5, $a6, $a7) => $fn(...func_get_args());
-
-        case 9:
-            return static fn ($a0, $a1, $a2, $a3, $a4, $a5, $a6, $a7, $a8) => $fn(...func_get_args());
-
-        case 10:
-            return static fn ($a0, $a1, $a2, $a3, $a4, $a5, $a6, $a7, $a8, $a9) => $fn(...func_get_args());
-
-        default:
-            throw new RuntimeException(
-                'First argument to _arity must be a non-negative integer no greater than ten',
-            );
-    }
+    return match ($n) {
+        0 => static fn () => $fn(...func_get_args()),
+        1 => static fn ($a0) => $fn(...func_get_args()),
+        2 => static fn ($a0, $a1) => $fn(...func_get_args()),
+        3 => static fn ($a0, $a1, $a2) => $fn(...func_get_args()),
+        4 => static fn ($a0, $a1, $a2, $a3) => $fn(...func_get_args()),
+        5 => static fn ($a0, $a1, $a2, $a3, $a4) => $fn(...func_get_args()),
+        6 => static fn ($a0, $a1, $a2, $a3, $a4, $a5) => $fn(...func_get_args()),
+        7 => static fn ($a0, $a1, $a2, $a3, $a4, $a5, $a6) => $fn(...func_get_args()),
+        8 => static fn ($a0, $a1, $a2, $a3, $a4, $a5, $a6, $a7) => $fn(...func_get_args()),
+        9 => static fn ($a0, $a1, $a2, $a3, $a4, $a5, $a6, $a7, $a8) => $fn(...func_get_args()),
+        10 => static fn ($a0, $a1, $a2, $a3, $a4, $a5, $a6, $a7, $a8, $a9) => $fn(...func_get_args()),
+        default => throw new RuntimeException(
+            'First argument to _arity must be a non-negative integer no greater than ten',
+        ),
+    };
 
     // phpcs:enable SlevomatCodingStandard.Functions.UnusedParameter.UnusedParameter
-}
-
-function _pipe(callable $f, callable $g): callable
-{
-    return static fn (...$args) => $g($f(...$args));
 }

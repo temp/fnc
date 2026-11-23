@@ -23,17 +23,6 @@ final class JoinTest extends TestCase
         $this->assertSame('', $result);
     }
 
-    public function testCurriedWithZeroElements(): void
-    {
-        $data = [];
-
-        $join = join('_');
-
-        $result = $join($data);
-
-        $this->assertSame('', $result);
-    }
-
     public function testWithOneElement(): void
     {
         $data = ['foo'];
@@ -43,33 +32,11 @@ final class JoinTest extends TestCase
         $this->assertSame('foo', $result);
     }
 
-    public function testCurriedWithOneElement(): void
-    {
-        $data = ['foo'];
-
-        $join = join('_');
-
-        $result = $join($data);
-
-        $this->assertSame('foo', $result);
-    }
-
     public function testWithMultipleElements(): void
     {
         $data = ['foo', 'bar'];
 
         $result = join('_', $data);
-
-        $this->assertSame('foo_bar', $result);
-    }
-
-    public function testCurriedWithMultipleElements(): void
-    {
-        $data = ['foo', 'bar'];
-
-        $join = join('_');
-
-        $result = $join($data);
 
         $this->assertSame('foo_bar', $result);
     }

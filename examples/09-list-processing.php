@@ -13,7 +13,7 @@ use function Fnc\find;
 use function Fnc\flatten;
 use function Fnc\groupBy;
 use function Fnc\head;
-use function Fnc\lt;
+use function Fnc\gt;
 use function Fnc\map;
 use function Fnc\mean;
 use function Fnc\none;
@@ -42,36 +42,36 @@ $orders = [
     ['id' => 5, 'customer' => 'Grace', 'status' => 'paid', 'total' => 99.9, 'items' => ['mug']],
 ];
 
-$isCancelled = propEq('cancelled', 'status');
+$isCancelled = propEq('cancelled', 'status', ?);
 
 $report = applySpec([
-    // reject() is the complement of filter(); array_values() would reindex the result
-    'valid_order_ids' => pipe(reject($isCancelled), pluck('id'), array_values(...)),
-    'customers' => pipe(pluck('customer'), uniq()),
-    'revenue' => pipe(filter(propEq('paid', 'status')), pluck('total'), sum()),
-    'average_order' => pipe(reject($isCancelled), pluck('total'), mean()),
+    // reject() is the complement of filter(); array_values(...) would reindex the result
+    'valid_order_ids' => pipe(reject($isCancelled, ?), pluck('id', ?), array_values(...)),
+    'customers' => pipe(pluck('customer', ?), uniq(...)),
+    'revenue' => pipe(filter(propEq('paid', 'status', ?), ?), pluck('total', ?), sum(...)),
+    'average_order' => pipe(reject($isCancelled, ?), pluck('total', ?), mean(...)),
     'top_2_orders' => pipe(
-        sortBy(static fn (array $order) => -$order['total']),
-        take(2),
-        map(prop('id')),
+        sortBy(static fn (array $order) => -$order['total'], ?),
+        take(2, ?),
+        map(prop('id', ?), ?),
     ),
-    'orders_by_status' => pipe(groupBy(prop('status')), map(pluck('id'))),
+    'orders_by_status' => pipe(groupBy(prop('status', ?), ?), map(pluck('id', ?), ?)),
     // sortWith() sorts by several comparators, the next one breaks ties
-    'by_customer_then_total' => pipe(sortWith([ascend(prop('customer')), descend(prop('total'))]), pluck('id')),
+    'by_customer_then_total' => pipe(sortWith([ascend(prop('customer', ?)), descend(prop('total', ?))], ?), pluck('id', ?)),
     // partition() splits into [matching, others] in one pass, keys are preserved
-    'paid_and_unpaid_ids' => pipe(partition(propEq('paid', 'status')), map(pluck('id'))),
-    'first_open_order' => pipe(find(propEq('open', 'status')), prop('id')),
-    'third_order' => pipe(nth(2), prop('id')),
-    // lt(0) reads "0 < …"
-    'all_totals_positive' => all(pipe(prop('total'), lt(0))),
-    'has_open_orders' => any(propEq('open', 'status')),
-    'nothing_refunded' => none(propEq('refunded', 'status')),
-    // chain() maps to lists and concatenates them, flatten() does the same for already nested lists
-    'all_items' => pipe(chain(prop('items')), uniq()),
-    'item_count' => pipe(pluck('items'), flatten(), 'count'),
-    'first_id' => pipe(pluck('id'), head()),
-    'other_ids' => pipe(pluck('id'), tail()),
-    'ids_newest_first' => pipe(pluck('id'), reverse()),
+    'paid_and_unpaid_ids' => pipe(partition(propEq('paid', 'status', ?), ?), map(pluck('id', ?), ?)),
+    'first_open_order' => pipe(find(propEq('open', 'status', ?), ?), prop('id', ?)),
+    'third_order' => pipe(nth(2, ?), prop('id', ?)),
+    // the placeholder marks the open operand: gt(?, 0) is "… > 0"
+    'all_totals_positive' => all(pipe(prop('total', ?), gt(?, 0)), ?),
+    'has_open_orders' => any(propEq('open', 'status', ?), ?),
+    'nothing_refunded' => none(propEq('refunded', 'status', ?), ?),
+    // chain() maps to lists and concatenates them, flatten(...) does the same for already nested lists
+    'all_items' => pipe(chain(prop('items', ?), ?), uniq(...)),
+    'item_count' => pipe(pluck('items', ?), flatten(...), count(...)),
+    'first_id' => pipe(pluck('id', ?), head(...)),
+    'other_ids' => pipe(pluck('id', ?), tail(...)),
+    'ids_newest_first' => pipe(pluck('id', ?), reverse(...)),
     // reduce() for anything the other functions don't cover
     'total_per_customer' => reduce(
         static function (array $totals, array $order) {
@@ -80,6 +80,7 @@ $report = applySpec([
             return $totals;
         },
         [],
+        ?,
     ),
 ]);
 

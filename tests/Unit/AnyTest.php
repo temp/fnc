@@ -17,7 +17,7 @@ final class AnyTest extends TestCase
     {
         $data = [1, 2];
 
-        $result = any(isEmpty(), $data);
+        $result = any(isEmpty(...), $data);
 
         $this->assertFalse($result);
     }
@@ -26,7 +26,7 @@ final class AnyTest extends TestCase
     {
         $data = [null, null];
 
-        $result = any(isEmpty(), $data);
+        $result = any(isEmpty(...), $data);
 
         $this->assertTrue($result);
     }
@@ -35,37 +35,7 @@ final class AnyTest extends TestCase
     {
         $data = [null, 2];
 
-        $result = any(isEmpty(), $data);
-
-        $this->assertTrue($result);
-    }
-
-    public function testCurriedAllNotEmpty(): void
-    {
-        $data = [1, 2];
-
-        $any = any(isEmpty());
-        $result = $any($data);
-
-        $this->assertFalse($result);
-    }
-
-    public function testCurriedAllEmpty(): void
-    {
-        $data = [null, null];
-
-        $any = any(isEmpty());
-        $result = $any($data);
-
-        $this->assertTrue($result);
-    }
-
-    public function testCurriedPartlyEmpty(): void
-    {
-        $data = [null, 2];
-
-        $any = any(isEmpty());
-        $result = $any($data);
+        $result = any(isEmpty(...), $data);
 
         $this->assertTrue($result);
     }

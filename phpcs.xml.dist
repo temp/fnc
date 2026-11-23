@@ -14,4 +14,11 @@
         <exclude name="Squiz.Classes.ValidClassName.NotCamelCaps" />
         <exclude name="Squiz.NamingConventions.ValidVariableName.NotCamelCaps" />
     </rule>
+
+    <!-- PHP_CodeSniffer 4.0 takes the placeholders of partial function application (foo(?, 1)) for the ternary
+         operator. Remove once it supports PHP 8.6. -->
+    <rule ref="PSR12.Operators.OperatorSpacing">
+        <exclude name="PSR12.Operators.OperatorSpacing.NoSpaceBefore"/>
+        <exclude name="PSR12.Operators.OperatorSpacing.NoSpaceAfter"/>
+    </rule>
 </ruleset>

@@ -19,15 +19,4 @@ final class LogicAndTest extends TestCase
         $this->assertFalse(logicAnd(true, false));
         $this->assertTrue(logicAnd(true, true));
     }
-
-    public function testCurriedLogicAnd(): void
-    {
-        $andTrue = logicAnd(true);
-        $andFalse = logicAnd(false);
-
-        $this->assertFalse($andTrue(false));
-        $this->assertTrue($andTrue(true));
-        $this->assertFalse($andFalse(true));
-        $this->assertFalse($andFalse(false));
-    }
 }

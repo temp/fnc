@@ -7,7 +7,6 @@ use function Fnc\applySpec;
 use function Fnc\converge;
 use function Fnc\divide;
 use function Fnc\filter;
-use function Fnc\flip;
 use function Fnc\ifElse;
 use function Fnc\isEmpty;
 use function Fnc\isNil;
@@ -71,61 +70,61 @@ const PRICE_TYPES = ['F' => 'final', 'L' => 'letter of intent', 'A' => 'initial 
 const SQM_PER_UNIT = ['m²' => 1.0, 'ft²' => 0.09290304, 'tsubo' => 3.30579];
 
 // Small domain helpers that the library doesn't (and shouldn't) provide.
-// flip(divide())(100) is "… / 100": cents to euro, basis points to percent.
-$fromHundredths = flip(divide())(100);
+// divide(?, 100) is "… / 100": cents to euro, basis points to percent.
+$fromHundredths = divide(?, 100);
 $quarter = static fn (string $date) => sprintf('Q%d/%s', ceil((int) substr($date, 5, 2) / 3), substr($date, 0, 4));
 $toSquareMeters = static fn (float $area, string $unit) => round($area * SQM_PER_UNIT[$unit], 2);
 
 $toDto = applySpec([
-    'key' => prop('key'),
-    'name' => prop('summary'),
-    'status' => path(['status', 'name']),
-    'created' => prop('created'),
-    'creator' => path(['creator', 'displayName']),
-    'usage' => path(['__Usage', 'value']),
+    'key' => prop('key', ?),
+    'name' => prop('summary', ?),
+    'status' => path(['status', 'name'], ?),
+    'created' => prop('created', ?),
+    'creator' => path(['creator', 'displayName'], ?),
+    'usage' => path(['__Usage', 'value'], ?),
     'purchase_price' => [
-        'euro' => pipe(prop('__Purchase price'), $fromHundredths),
-        // flip(prop()) looks the code up in the map
-        'type' => pipe(prop('__Price type'), flip(prop())(PRICE_TYPES)),
+        'euro' => pipe(prop('__Purchase price', ?), $fromHundredths),
+        // prop(?, PRICE_TYPES) looks the code up in the map
+        'type' => pipe(prop('__Price type', ?), prop(?, PRICE_TYPES)),
     ],
-    'yield_percent' => pipe(prop('__Yield'), $fromHundredths),
-    'occupancy_percent' => pipe(prop('__Occupancy'), $fromHundredths),
+    'yield_percent' => pipe(prop('__Yield', ?), $fromHundredths),
+    'occupancy_percent' => pipe(prop('__Occupancy', ?), $fromHundredths),
     'area_sqm' => converge($toSquareMeters, [
-        pipe(prop('__Area'), $fromHundredths),
-        path(['__Area unit', 'value']),
+        pipe(prop('__Area', ?), $fromHundredths),
+        path(['__Area unit', 'value'], ?),
     ]),
-    // internal functions like intval can be used directly
-    'year_of_construction' => pipe(prop('__Year of construction'), ifElse(isEmpty(), always(null), 'intval')),
-    'year_of_refurbishment' => pipe(prop('__Year of refurbishment'), ifElse(isEmpty(), always(null), 'intval')),
+    // internal functions like intval can be used as first-class callables
+    'year_of_construction' => pipe(prop('__Year of construction', ?), ifElse(isEmpty(...), always(null), intval(...))),
+    'year_of_refurbishment' => pipe(prop('__Year of refurbishment', ?), ifElse(isEmpty(...), always(null), intval(...))),
     // unless() keeps null as null instead of turning it into 0
-    'market_value' => pipe(prop('__Market value'), unless(isNil(), $fromHundredths)),
+    'market_value' => pipe(prop('__Market value', ?), unless(isNil(...), $fromHundredths, ?)),
     'location' => [
-        'lat' => pipe(prop('__Coordinates'), split(','), nth(0), 'floatval'),
-        'lng' => pipe(prop('__Coordinates'), split(','), nth(1), 'floatval'),
+        'lat' => pipe(prop('__Coordinates', ?), split(',', ?), nth(0, ?), floatval(...)),
+        'lng' => pipe(prop('__Coordinates', ?), split(',', ?), nth(1, ?), floatval(...)),
     ],
     'closing' => ifElse(
-        pathSatisfies(isEmpty(), ['__Closing date']),
+        pathSatisfies(isEmpty(...), ['__Closing date'], ?),
         always(null),
         applySpec([
-            'date' => prop('__Closing date'),
-            'quarter' => pipe(prop('__Closing date'), $quarter),
+            'date' => prop('__Closing date', ?),
+            'quarter' => pipe(prop('__Closing date', ?), $quarter),
         ]),
     ),
     'proposed_funds' => pipe(
-        path(['__Allocation', 'funds']),
-        filter(prop('proposed')),
-        map(pick(['fund', 'vote'])),
-        values(),
+        path(['__Allocation', 'funds'], ?),
+        filter(prop('proposed', ?), ?),
+        map(pick(['fund', 'vote'], ?), ?),
+        values(...),
     ),
     'comments' => pipe(
-        path(['comment', 'comments']),
+        path(['comment', 'comments'], ?),
         map(applySpec([
-            'created' => prop('created'),
-            'author' => path(['author', 'displayName']),
-            'text' => prop('body'),
-        ])),
+            'created' => prop('created', ?),
+            'author' => path(['author', 'displayName'], ?),
+            'text' => prop('body', ?),
+        ]), ?),
     ),
-    'labels' => propOr([], 'labels'),
+    'labels' => propOr([], 'labels', ?),
 ]);
 
 echo 'Input:'.PHP_EOL;

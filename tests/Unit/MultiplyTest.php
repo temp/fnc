@@ -47,15 +47,6 @@ final class MultiplyTest extends TestCase
         $this->assertSame(0, $result);
     }
 
-    public function testCurriedMultiply(): void
-    {
-        $identity = multiply(12);
-
-        $result = $identity(3);
-
-        $this->assertSame(36, $result);
-    }
-
     public function testFloatZeroStaysFloat(): void
     {
         $this->assertSame(0.0, multiply(0.0, 1.5));

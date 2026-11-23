@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace FncTests\Unit;
 
 use PHPUnit\Framework\Attributes\CoversFunction;
-use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\TestCase;
 
-use function Fnc\curryN;
 use function Fnc\reduce;
+use function sprintf;
+use function str_pad;
 
 #[CoversFunction('Fnc\reduce')]
 final class ReduceTest extends TestCase
@@ -23,9 +23,6 @@ final class ReduceTest extends TestCase
         };
 
         $this->assertEquals(16, reduce($add, 10, $data));
-
-        $reduceByAdding = reduce($add, 0);
-        $this->assertEquals(6, $reduceByAdding($data));
 
         $b = ['a' => 1, 'b' => 2];
         $concatKeyVals = static function ($acc, $value, $key) {
@@ -54,19 +51,14 @@ final class ReduceTest extends TestCase
         $this->assertSame([['a']], $result);
     }
 
-    public function testCurriedCallbackReceivesKey(): void
+    public function testPartialApplicationWithEnoughPlaceholdersReceivesKey(): void
     {
-        $concat = curryN(3, static fn ($acc, $v, $k) => $acc . $k . $v);
-
-        $this->assertSame('x1y2', reduce($concat, '', ['x' => 1, 'y' => 2]));
+        $this->assertSame('x1y2', reduce(sprintf('%s%3$s%2$s', ?, ?, ?), '', ['x' => 1, 'y' => 2]));
     }
 
-    #[RequiresPhp('>=8.6.0')]
     public function testPartialApplicationDoesNotReceiveKey(): void
     {
         // str_pad()'s optional $pad_string must not receive the key 'a'
-        $pad = InternalAcceptsArgsTest::partial('str_pad(?, ?, ...)');
-
-        $this->assertSame('x  ', reduce($pad, 'x', ['a' => 3]));
+        $this->assertSame('x  ', reduce(str_pad(?, ?, ...), 'x', ['a' => 3]));
     }
 }

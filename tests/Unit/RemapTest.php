@@ -8,7 +8,6 @@ use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\TestCase;
 
-use function array_map;
 use function Fnc\always;
 use function Fnc\applySpec;
 use function Fnc\ifElse;
@@ -46,9 +45,9 @@ final class RemapTest extends TestCase
         $spec = [
             'position' => static fn (array $record) => [$record['lat'], $record['lng']],
             'brand' => ifElse(
-                propSatisfies(isEmpty(), 'brand_id'),
+                propSatisfies(isEmpty(...), 'brand_id', ?),
                 always(null),
-                applySpec(['id' => prop('brand_id')]),
+                applySpec(['id' => prop('brand_id', ?)]),
             ),
         ];
 
@@ -70,15 +69,6 @@ final class RemapTest extends TestCase
         $result = remap(['address' => ['city' => 'city']], ['address' => 'Main St', 'city' => 'Berlin']);
 
         $this->assertSame(['address' => ['city' => 'Berlin']], $result);
-    }
-
-    public function testCurried(): void
-    {
-        $toDto = remap(['user' => ['id' => 'user_id']]);
-
-        $result = array_map($toDto, [['user_id' => 1], ['user_id' => 2]]);
-
-        $this->assertSame([['user' => ['id' => 1]], ['user' => ['id' => 2]]], $result);
     }
 
     public function testInvalidSpecValue(): void

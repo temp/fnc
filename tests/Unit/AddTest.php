@@ -23,9 +23,4 @@ final class AddTest extends TestCase
         $this->assertSame(3, add(null, 3));
         $this->assertSame(2, add(2, null));
     }
-
-    public function testCurried(): void
-    {
-        $this->assertSame(5, add(2)(3));
-    }
 }

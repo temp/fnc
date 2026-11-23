@@ -26,7 +26,7 @@ final class SortWithTest extends TestCase
             ['carhouse' => 'a', 'id' => '1'],
         ];
 
-        $sorted = sortWith([ascend(prop('carhouse')), descend(prop('id'))], $records);
+        $sorted = sortWith([ascend(prop('carhouse', ?)), descend(prop('id', ?))], $records);
 
         $this->assertSame(
             [['a', '2'], ['a', '1'], ['b', '1'], ['b', '0']],
@@ -38,7 +38,7 @@ final class SortWithTest extends TestCase
     {
         $items = ['x' => ['k' => 1, 'v' => 'a'], 'y' => ['k' => 0, 'v' => 'b'], 'z' => ['k' => 1, 'v' => 'c']];
 
-        $this->assertSame(['b', 'a', 'c'], array_column(sortWith([ascend(prop('k'))], $items), 'v'));
+        $this->assertSame(['b', 'a', 'c'], array_column(sortWith([ascend(prop('k', ?))], $items), 'v'));
     }
 
     public function testNoComparatorsKeepsOrder(): void

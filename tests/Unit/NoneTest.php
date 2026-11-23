@@ -17,7 +17,7 @@ final class NoneTest extends TestCase
     {
         $data = [1, 2];
 
-        $result = none(isEmpty(), $data);
+        $result = none(isEmpty(...), $data);
 
         $this->assertTrue($result);
     }
@@ -26,7 +26,7 @@ final class NoneTest extends TestCase
     {
         $data = [null, null];
 
-        $result = none(isEmpty(), $data);
+        $result = none(isEmpty(...), $data);
 
         $this->assertFalse($result);
     }
@@ -35,37 +35,7 @@ final class NoneTest extends TestCase
     {
         $data = [null, 2];
 
-        $result = none(isEmpty(), $data);
-
-        $this->assertFalse($result);
-    }
-
-    public function testCurriedAllNotEmpty(): void
-    {
-        $data = [1, 2];
-
-        $none = none(isEmpty());
-        $result = $none($data);
-
-        $this->assertTrue($result);
-    }
-
-    public function testCurriedAllEmpty(): void
-    {
-        $data = [null, null];
-
-        $none = none(isEmpty());
-        $result = $none($data);
-
-        $this->assertFalse($result);
-    }
-
-    public function testCurriedPartlyEmpty(): void
-    {
-        $data = [null, 2];
-
-        $none = none(isEmpty());
-        $result = $none($data);
+        $result = none(isEmpty(...), $data);
 
         $this->assertFalse($result);
     }

@@ -7,6 +7,7 @@ namespace FncTests\Unit;
 use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\TestCase;
 
+use function Fnc\_getArity;
 use function Fnc\always;
 use function Fnc\applySpec;
 use function Fnc\prop;
@@ -34,7 +35,7 @@ final class ApplySpecTest extends TestCase
 
     public function testWithProp(): void
     {
-        $applySpec = applySpec(['a' => prop('foo'), 'b' => prop('bar'), 'c' => prop('baz')]);
+        $applySpec = applySpec(['a' => prop('foo', ?), 'b' => prop('bar', ?), 'c' => prop('baz', ?)]);
 
         $result = $applySpec(['foo' => 1, 'bar' => 2, 'baz' => 3]);
 
@@ -44,10 +45,10 @@ final class ApplySpecTest extends TestCase
     public function testNested(): void
     {
         $applySpec = applySpec([
-            'a' => prop('foo'),
+            'a' => prop('foo', ?),
             'b' => [
-                'c' => prop('bar'),
-                'd' => prop('baz'),
+                'c' => prop('bar', ?),
+                'd' => prop('baz', ?),
             ],
         ]);
 
@@ -60,7 +61,7 @@ final class ApplySpecTest extends TestCase
     {
         $spec = applySpec(['n' => ['sum' => static fn ($a, $b) => $a + $b]]);
 
-        $this->assertSame(['n' => ['sum' => 3]], $spec(1)(2));
+        $this->assertSame(2, _getArity($spec));
         $this->assertSame(['n' => ['sum' => 3]], $spec(1, 2));
     }
 }

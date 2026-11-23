@@ -17,9 +17,7 @@ final class ConcatTest extends TestCase
     {
         $a = [1, 2, 3];
         $b = [1, 2, 4];
-        $c = concat($a);
         $this->assertEquals([1, 2, 3, 1, 2, 4], concat($a, $b));
-        $this->assertEquals([1, 2, 3, 1, 2, 4], $c($b));
         $this->assertEquals([1, 2], concat([1, 2], []));
     }
 
@@ -33,7 +31,6 @@ final class ConcatTest extends TestCase
     public function testStrings(): void
     {
         $this->assertSame('abcd', concat('ab', 'cd'));
-        $this->assertSame('abcd', concat('ab')('cd'));
     }
 
     public function testMixedTypes(): void

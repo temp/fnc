@@ -20,9 +20,4 @@ final class PathEqTest extends TestCase
         $this->assertFalse(pathEq('Hamburg', ['address', 'city'], $user));
         $this->assertFalse(pathEq('Berlin', ['address', 'zip'], $user));
     }
-
-    public function testCurried(): void
-    {
-        $this->assertTrue(pathEq(1)(['a'])(['a' => 1]));
-    }
 }

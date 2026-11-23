@@ -6,12 +6,9 @@ namespace FncTests\Unit;
 
 use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
-use stdClass;
 
 use function Fnc\_getArity;
-use function Fnc\curry2;
-use function Fnc\curry3;
+use function str_pad;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration.MultipleClasses
 // phpcs:disable SlevomatCodingStandard.Functions.UnusedParameter.UnusedParameter
@@ -72,38 +69,21 @@ final class InternalGetArityTest extends TestCase
         $this->assertEquals(2, $result);
     }
 
-    public function testGetInvalidFunction(): void
-    {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Could not examine callback');
-
-        _getArity('foo');
-    }
-
-    public function testInvalidObject(): void
-    {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Could not examine callback');
-
-        _getArity(new stdClass());
-    }
-
-    public function testCurriedClosures(): void
-    {
-        $fn3 = static fn ($a, $b, $c) => $a + $b + $c;
-
-        $this->assertSame(2, _getArity(curry2(static fn ($a, $b) => $a + $b)));
-        $this->assertSame(3, _getArity(curry3($fn3)));
-        $this->assertSame(2, _getArity(curry3($fn3)(1)));
-        $this->assertSame(1, _getArity(curry3($fn3)(1, 2)));
-    }
-
     public function testOptionalAndVariadicParametersDoNotCount(): void
     {
         $this->assertSame(1, _getArity('trim'));
         $this->assertSame(1, _getArity(static fn ($a, $b = 1) => $a + $b));
         $this->assertSame(0, _getArity(static fn (...$args) => $args));
         $this->assertSame(1, _getArity(static fn ($a, ...$rest) => $a));
+    }
+
+    public function testPartialApplicationCountsPlaceholders(): void
+    {
+        $fn3 = static fn ($a, $b, $c) => $a + $b + $c;
+
+        $this->assertSame(2, _getArity($fn3(1, ?, ?)));
+        $this->assertSame(1, _getArity($fn3(1, 2, ?)));
+        $this->assertSame(1, _getArity(str_pad(?, 10, ...)));
     }
 }
 

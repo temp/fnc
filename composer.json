@@ -9,7 +9,7 @@
         }
     ],
     "require": {
-        "php": "^8.4"
+        "php": "^8.6"
     },
     "replace": {
         "temp/fn": "self.version"
@@ -35,7 +35,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "1.0-dev"
+            "dev-main": "2.0-dev"
         }
     },
     "config": {

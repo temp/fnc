@@ -20,15 +20,4 @@ final class OmitTest extends TestCase
 
         $this->assertEquals(['a' => 1, 'c' => 3, 'e' => 5], $result);
     }
-
-    public function testCurriedArrayValue(): void
-    {
-        $data = ['a' => 1, 'b' => 2, 'c' => 3, 'd' => 4, 'e' => 5];
-
-        $omit = omit(['b', 'd', 'f']);
-
-        $result = $omit($data);
-
-        $this->assertEquals(['a' => 1, 'c' => 3, 'e' => 5], $result);
-    }
 }

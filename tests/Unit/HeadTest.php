@@ -8,9 +8,6 @@ use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\TestCase;
 
 use function Fnc\head;
-use function Fnc\map;
-use function Fnc\pipe;
-use function Fnc\reverse;
 
 #[CoversFunction('Fnc\head')]
 final class HeadTest extends TestCase
@@ -31,11 +28,5 @@ final class HeadTest extends TestCase
     public function testNullFirstElement(): void
     {
         $this->assertNull(head([null, 1]));
-    }
-
-    public function testCurried(): void
-    {
-        $this->assertSame(1, pipe(reverse(), head())([3, 2, 1]));
-        $this->assertSame([1, 4], map(head(), [[1, 2], [4]]));
     }
 }

@@ -26,9 +26,4 @@ final class DefaultToTest extends TestCase
         $this->assertSame('', defaultTo(42, ''));
         $this->assertFalse(defaultTo(42, false));
     }
-
-    public function testCurried(): void
-    {
-        $this->assertSame(42, defaultTo(42)(null));
-    }
 }

@@ -18,9 +18,4 @@ final class LtTest extends TestCase
         $this->assertFalse(lt(1, 1));
         $this->assertFalse(lt(2, 1));
     }
-
-    public function testCurriedFirstArgumentIsLeftOperand(): void
-    {
-        $this->assertTrue(lt(1)(2));
-    }
 }

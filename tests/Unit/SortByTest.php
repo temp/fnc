@@ -18,14 +18,14 @@ final class SortByTest extends TestCase
     {
         $users = [['name' => 'b', 'age' => 30], ['name' => 'a', 'age' => 20], ['name' => 'c', 'age' => 25]];
 
-        $this->assertSame(['a', 'c', 'b'], array_column(sortBy(prop('age'), $users), 'name'));
+        $this->assertSame(['a', 'c', 'b'], array_column(sortBy(prop('age', ?), $users), 'name'));
     }
 
     public function testStable(): void
     {
         $items = [['k' => 1, 'v' => 'a'], ['k' => 0, 'v' => 'b'], ['k' => 1, 'v' => 'c']];
 
-        $this->assertSame(['b', 'a', 'c'], array_column(sortBy(prop('k'), $items), 'v'));
+        $this->assertSame(['b', 'a', 'c'], array_column(sortBy(prop('k', ?), $items), 'v'));
     }
 
     public function testReturnsList(): void

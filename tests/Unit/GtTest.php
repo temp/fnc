@@ -18,9 +18,4 @@ final class GtTest extends TestCase
         $this->assertFalse(gt(1, 1));
         $this->assertFalse(gt(1, 2));
     }
-
-    public function testCurriedFirstArgumentIsLeftOperand(): void
-    {
-        $this->assertTrue(gt(2)(1));
-    }
 }

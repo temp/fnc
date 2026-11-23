@@ -41,42 +41,42 @@ final class RemapTest extends TestCase
         ];
 
         $remap = converge(
-            merge(),
+            merge(...),
             [
                 applySpec([
                     'contact' => [
-                        'id' => prop('contact_id'),
-                        'name' => prop('contact_name'),
+                        'id' => prop('contact_id', ?),
+                        'name' => prop('contact_name', ?),
                     ],
                     'unloading_point' => ifElse(
-                        compose(isEmpty(), prop('unloading_point_code')),
+                        compose(isEmpty(...), prop('unloading_point_code', ?)),
                         always(null),
                         applySpec([
-                            'code' => prop('unloading_point_code'),
-                            'description' => prop('unloading_point_description'),
+                            'code' => prop('unloading_point_code', ?),
+                            'description' => prop('unloading_point_description', ?),
                         ]),
                     ),
                     'creation_date' => converge(
-                        unapply(join(' ')),
+                        unapply(join(' ', ?)),
                         [
-                            pipe(prop('creation_date_date'), take(10)),
-                            pipe(prop('creation_date_time'), drop(11)),
+                            pipe(prop('creation_date_date', ?), take(10, ?)),
+                            pipe(prop('creation_date_time', ?), drop(11, ?)),
                         ],
                     ),
                     'invalid' => ifElse(
-                        compose(isEmpty(), prop('invalid_id')),
+                        compose(isEmpty(...), prop('invalid_id', ?)),
                         always(null),
                         applySpec([
-                            'id' => prop('invalid_id'),
-                            'value' => prop('invalid_value'),
+                            'id' => prop('invalid_id', ?),
+                            'value' => prop('invalid_value', ?),
                         ]),
                     ),
                     'valid' => ifElse(
-                        compose(isEmpty(), prop('valid_id')),
+                        compose(isEmpty(...), prop('valid_id', ?)),
                         always(null),
                         applySpec([
-                            'id' => prop('valid_id'),
-                            'value' => prop('valid_value'),
+                            'id' => prop('valid_id', ?),
+                            'value' => prop('valid_value', ?),
                         ]),
                     ),
                     'nested' => [
@@ -105,7 +105,7 @@ final class RemapTest extends TestCase
                     'valid_value',
                     'creation_date_date',
                     'creation_date_time',
-                ]),
+                ], ?),
             ],
         );
 

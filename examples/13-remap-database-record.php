@@ -58,27 +58,27 @@ $toDto = pipe(
         'carhouse' => ['id' => 'carhouse_id', 'name' => 'carhouse_name'],
         // callables get the whole row, e.g. for "null if the joined row is missing"
         'rim_brand' => ifElse(
-            propSatisfies(isEmpty(), 'rim_brand_id'),
+            propSatisfies(isEmpty(...), 'rim_brand_id', ?),
             always(null),
-            applySpec(['id' => prop('rim_brand_id'), 'name' => prop('rim_brand_name')]),
+            applySpec(['id' => prop('rim_brand_id', ?), 'name' => prop('rim_brand_name', ?)]),
         ),
         // date and time live in separate columns
         'created_at' => converge(
-            unapply(join(' ')),
+            unapply(join(' ', ?)),
             [
-                pipe(prop('created_date'), slice(0, 10)),
-                pipe(prop('created_time'), slice(11, 19)),
+                pipe(prop('created_date', ?), slice(0, 10, ?)),
+                pipe(prop('created_time', ?), slice(11, 19, ?)),
             ],
         ),
-    ]),
+    ], ?),
     // columns only read by callables are removed explicitly
-    omit(['rim_brand_id', 'rim_brand_name', 'created_date', 'created_time']),
+    omit(['rim_brand_id', 'rim_brand_name', 'created_date', 'created_time'], ?),
 );
 
 // ascendWith/descendWith take a comparison function; strcmp sorts strings byte-wise like SQL's binary collation,
 // while ascend/descend use <=>, which compares numeric strings numerically
-$sorted = sortWith([ascendWith(strcmp(...), prop('carhouse_id')), descend(prop('created_date'))], $rows);
-$idsDescending = map(prop('id'), sortWith([descendWith(strcmp(...), prop('id'))], $rows));
+$sorted = sortWith([ascendWith(strcmp(...), prop('carhouse_id', ?)), descend(prop('created_date', ?))], $rows);
+$idsDescending = map(prop('id', ?), sortWith([descendWith(strcmp(...), prop('id', ?))], $rows));
 
 echo 'Input:'.PHP_EOL;
 print_r($rows);

@@ -20,9 +20,4 @@ final class BothTest extends TestCase
         $this->assertFalse($fn(0));
         $this->assertFalse($fn(10));
     }
-
-    public function testCurried(): void
-    {
-        $this->assertTrue(both(static fn () => true)(static fn () => true)());
-    }
 }

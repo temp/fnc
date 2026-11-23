@@ -19,15 +19,4 @@ final class LogicOrTest extends TestCase
         $this->assertTrue(logicOr(true, false));
         $this->assertTrue(logicOr(true, true));
     }
-
-    public function testCurriedLogicOr(): void
-    {
-        $orTrue = logicOr(true);
-        $orFalse = logicOr(false);
-
-        $this->assertTrue($orTrue(false));
-        $this->assertTrue($orTrue(true));
-        $this->assertTrue($orFalse(true));
-        $this->assertFalse($orFalse(false));
-    }
 }

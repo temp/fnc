@@ -24,33 +24,33 @@ $data = [
 ];
 
 $fn = applySpec([
-    'filter1' => pipe(applySpec([prop('a'),prop('b'),prop('c')]), filter(complement(isEmpty()))),
+    'filter1' => pipe(applySpec([prop('a', ?),prop('b', ?),prop('c', ?)]), filter(complement(isEmpty(...)), ?)),
     'value1' => ifElse(
-        pipe(applySpec([prop('a'),prop('b'),prop('c')]), filter(complement(isEmpty()))),
+        pipe(applySpec([prop('a', ?),prop('b', ?),prop('c', ?)]), filter(complement(isEmpty(...)), ?)),
         applySpec([
-            'v1' => pipe(prop('a')),
-            'v2' => pipe(prop('b')),
-            'v3' => pipe(prop('c')),
+            'v1' => prop('a', ?),
+            'v2' => prop('b', ?),
+            'v3' => prop('c', ?),
         ]),
         always(null),
     ),
-    'filter2' => pipe(applySpec([prop('d'),prop('e'),prop('f')]), filter(complement(isEmpty()))),
+    'filter2' => pipe(applySpec([prop('d', ?),prop('e', ?),prop('f', ?)]), filter(complement(isEmpty(...)), ?)),
     'value2' => ifElse(
-        pipe(applySpec([prop('d'),prop('e'),prop('f')]), filter(complement(isEmpty()))),
+        pipe(applySpec([prop('d', ?),prop('e', ?),prop('f', ?)]), filter(complement(isEmpty(...)), ?)),
         applySpec([
-            'v1' => pipe(prop('d')),
-            'v2' => pipe(prop('e')),
-            'v3' => pipe(prop('f')),
+            'v1' => prop('d', ?),
+            'v2' => prop('e', ?),
+            'v3' => prop('f', ?),
         ]),
         always(null),
     ),
-    'filter3' => pipe(applySpec([prop('g'),prop('h'),prop('i')]), filter(complement(isEmpty()))),
+    'filter3' => pipe(applySpec([prop('g', ?),prop('h', ?),prop('i', ?)]), filter(complement(isEmpty(...)), ?)),
     'value3' => ifElse(
-        pipe(applySpec([prop('g'),prop('h'),prop('i')]), filter(complement(isEmpty()))),
+        pipe(applySpec([prop('g', ?),prop('h', ?),prop('i', ?)]), filter(complement(isEmpty(...)), ?)),
         applySpec([
-            'v1' => pipe(prop('g')),
-            'v2' => pipe(prop('h')),
-            'v3' => pipe(prop('i')),
+            'v1' => prop('g', ?),
+            'v2' => prop('h', ?),
+            'v3' => prop('i', ?),
         ]),
         always(null),
     ),

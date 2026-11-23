@@ -18,19 +18,19 @@ $data = [
 
 $fn = applySpec([
     'invalid' => ifElse(
-        compose(isEmpty(), prop('invalid_id')),
+        compose(isEmpty(...), prop('invalid_id', ?)),
         always(null),
         applySpec([
-            'id' => prop('invalid_id'),
-            'value' => prop('invalid_value'),
+            'id' => prop('invalid_id', ?),
+            'value' => prop('invalid_value', ?),
         ]),
     ),
     'valid' => ifElse(
-        compose(isEmpty(), prop('valid_id')),
+        compose(isEmpty(...), prop('valid_id', ?)),
         always(null),
         applySpec([
-            'id' => prop('valid_id'),
-            'value' => prop('valid_value'),
+            'id' => prop('valid_id', ?),
+            'value' => prop('valid_value', ?),
         ]),
     ),
 ]);

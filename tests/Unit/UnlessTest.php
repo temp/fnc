@@ -9,15 +9,14 @@ use PHPUnit\Framework\TestCase;
 
 use function Fnc\isNil;
 use function Fnc\unless;
+use function trim;
 
 #[CoversFunction('Fnc\unless')]
 final class UnlessTest extends TestCase
 {
     public function testUnless(): void
     {
-        $trimUnlessNull = unless(isNil(), 'trim');
-
-        $this->assertSame('x', $trimUnlessNull(' x '));
-        $this->assertNull($trimUnlessNull(null));
+        $this->assertSame('x', unless(isNil(...), trim(...), ' x '));
+        $this->assertNull(unless(isNil(...), trim(...), null));
     }
 }

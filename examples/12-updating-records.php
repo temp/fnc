@@ -29,25 +29,26 @@ $product = [
 // All functions return modified copies, the input stays untouched.
 $update = pipe(
     evolve([
-        'name' => pipe('trim', 'ucwords'),
-        'stock' => inc(),
-        'meta' => ['views' => inc()],
-    ]),
-    assoc('currency', 'EUR'),
-    assocPath(['meta', 'seo', 'slug'], 'coffee-mug'),
+        'name' => pipe(trim(...), ucwords(...)),
+        'stock' => inc(...),
+        'meta' => ['views' => inc(...)],
+    ], ?),
+    assoc('currency', 'EUR', ?),
+    assocPath(['meta', 'seo', 'slug'], 'coffee-mug', ?),
     // tap() lets you look into a pipeline without changing the value
     tap(static function (array $intermediate): void {
         echo 'After update: ' . json_encode($intermediate) . PHP_EOL;
-    }),
-    omit(['internal_note']),
+    }, ?),
+    omit(['internal_note'], ?),
 );
 
-$publicView = pick(['sku', 'name', 'price', 'currency']);
+$publicView = pick(['sku', 'name', 'price', 'currency'], ?);
 
 echo 'Input:'.PHP_EOL;
 print_r($product);
 
-$updated = $update($product);
+// the pipe operator runs a value through functions right away
+$updated = $product |> $update;
 
 echo 'Output:'.PHP_EOL;
 print_r($updated);

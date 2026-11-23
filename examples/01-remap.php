@@ -27,26 +27,26 @@ $data = [
 ];
 
 $fn = converge(
-    merge(),
+    merge(...),
     [
         applySpec([
             'contact' => [
-                'id' => prop('contact_id'),
-                'name' => prop('contact_name'),
+                'id' => prop('contact_id', ?),
+                'name' => prop('contact_name', ?),
             ],
             'unloadingPoint' => ifElse(
-                compose(isEmpty(), prop('unloading_point_code')),
+                compose(isEmpty(...), prop('unloading_point_code', ?)),
                 null,
                 applySpec([
-                    'id' => prop('unloading_point_code'),
-                    'value' => prop('unloading_point_description'),
+                    'id' => prop('unloading_point_code', ?),
+                    'value' => prop('unloading_point_description', ?),
                 ]),
             ),
             'creationDate' => converge(
-                unapply(join(' ')),
+                unapply(join(' ', ?)),
                 [
-                    pipe(prop('creation_date_date'), take(10)),
-                    pipe(prop('creation_date_time'), drop(11), take(8)),
+                    pipe(prop('creation_date_date', ?), take(10, ?)),
+                    pipe(prop('creation_date_time', ?), drop(11, ?), take(8, ?)),
                 ]
             ),
         ]),
@@ -54,7 +54,7 @@ $fn = converge(
             'contact_id', 'contact_name',
             'unloading_point_code', 'unloading_point_description',
             'creation_date_date', 'creation_date_time',
-        ]),
+        ], ?),
     ]
 );
 

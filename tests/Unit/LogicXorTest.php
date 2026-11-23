@@ -19,15 +19,4 @@ final class LogicXorTest extends TestCase
         $this->assertTrue(logicXor(true, false));
         $this->assertFalse(logicXor(true, true));
     }
-
-    public function testCurriedLogicXor(): void
-    {
-        $xorTrue = logicXor(true);
-        $xorFalse = logicXor(false);
-
-        $this->assertTrue($xorTrue(false));
-        $this->assertFalse($xorTrue(true));
-        $this->assertTrue($xorFalse(true));
-        $this->assertFalse($xorFalse(false));
-    }
 }

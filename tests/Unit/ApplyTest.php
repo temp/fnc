@@ -23,18 +23,6 @@ final class ApplyTest extends TestCase
         $this->assertSame(99, $result);
     }
 
-    public function testCurriedArrayValue(): void
-    {
-        $data = [1, 99, 30];
-        $max = static fn (int $first, int ...$rest) => max($first, ...$rest);
-
-        $apply = apply($max);
-
-        $result = $apply($data);
-
-        $this->assertSame(99, $result);
-    }
-
     public function testVariadicFunction(): void
     {
         $collect = static fn (mixed ...$args) => $args;

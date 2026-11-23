@@ -18,11 +18,4 @@ final class PropEqTest extends TestCase
         $this->assertFalse(propEq('active', 'status', ['status' => 'inactive']));
         $this->assertFalse(propEq('1', 'id', ['id' => 1]));
     }
-
-    public function testCurried(): void
-    {
-        $isActive = propEq('active', 'status');
-
-        $this->assertTrue($isActive(['status' => 'active']));
-    }
 }

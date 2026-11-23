@@ -7,6 +7,7 @@ namespace FncTests\Unit;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\TestCase;
+use ReflectionFunction;
 
 use function Fnc\pipe;
 
@@ -28,6 +29,14 @@ final class PipeTest extends TestCase
         $pipe = pipe($square, $double, $triple);
 
         $this->assertEquals(150, $pipe(5));
+    }
+
+    public function testResultHasArityOfFirstFunction(): void
+    {
+        $pipe = pipe(static fn ($a, $b) => $a + $b, static fn ($x) => $x * 2);
+
+        $this->assertSame(2, new ReflectionFunction($pipe)->getNumberOfRequiredParameters());
+        $this->assertSame(6, $pipe(1, 2));
     }
 
     public function testPipeWithoutFunctions(): void

@@ -20,15 +20,4 @@ final class ReverseTest extends TestCase
 
         $this->assertSame(['baz', 'bar', 'foo'], $result);
     }
-
-    public function testCurriedArrayValue(): void
-    {
-        $data = ['foo', 'bar', 'baz'];
-
-        $reverse = reverse();
-
-        $result = $reverse($data);
-
-        $this->assertSame(['baz', 'bar', 'foo'], $result);
-    }
 }

@@ -14,8 +14,8 @@ $data = [
 ];
 
 $fn = applySpec([
-    'abc' => pipe(prop('abc'), take(1)),
-    'foo' => compose(take(1), prop('foo')),
+    'abc' => pipe(prop('abc', ?), take(1, ?)),
+    'foo' => compose(take(1, ?), prop('foo', ?)),
 ]);
 
 echo 'Input:'.PHP_EOL;

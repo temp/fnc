@@ -6,23 +6,24 @@ namespace FncTests\Unit;
 
 use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 
 use function Fnc\always;
 
 #[CoversFunction('Fnc\always')]
 final class AlwaysTest extends TestCase
 {
-    public function testStringValue(): void
+    public function testReturnsSameInstance(): void
     {
-        $always = always('foo');
+        $value = new stdClass();
 
-        $this->assertSame('foo', $always());
+        $this->assertSame($value, always($value)());
     }
 
-    public function testArrayValue(): void
+    public function testIgnoresArguments(): void
     {
-        $always = always([1, 99, 30]);
+        $value = new stdClass();
 
-        $this->assertSame([1, 99, 30], $always());
+        $this->assertSame($value, always($value)(1, 'a'));
     }
 }

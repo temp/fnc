@@ -28,11 +28,4 @@ final class SliceTest extends TestCase
         $this->assertSame([], slice(2, 2, [1, 2, 3]));
         $this->assertSame(['b' => 2], slice(1, 2, ['a' => 1, 'b' => 2, 'c' => 3]));
     }
-
-    public function testCurried(): void
-    {
-        $time = slice(11, 19);
-
-        $this->assertSame('08:15:00', $time('1753-01-01 08:15:00.000'));
-    }
 }

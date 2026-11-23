@@ -15,7 +15,7 @@ final class DescendTest extends TestCase
 {
     public function testDescend(): void
     {
-        $byAge = descend(prop('age'));
+        $byAge = descend(prop('age', ?));
 
         $this->assertSame(1, $byAge(['age' => 1], ['age' => 2]));
         $this->assertSame(0, $byAge(['age' => 1], ['age' => 1]));

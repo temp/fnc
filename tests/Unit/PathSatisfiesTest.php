@@ -17,7 +17,7 @@ final class PathSatisfiesTest extends TestCase
     {
         $data = ['address' => ['zip' => '', 'city' => 'Berlin']];
 
-        $this->assertTrue(pathSatisfies(isEmpty(), ['address', 'zip'], $data));
-        $this->assertFalse(pathSatisfies(isEmpty(), ['address', 'city'], $data));
+        $this->assertTrue(pathSatisfies(isEmpty(...), ['address', 'zip'], $data));
+        $this->assertFalse(pathSatisfies(isEmpty(...), ['address', 'city'], $data));
     }
 }

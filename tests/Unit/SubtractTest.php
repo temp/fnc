@@ -17,9 +17,4 @@ final class SubtractTest extends TestCase
         $this->assertSame(7, subtract(10, 3));
         $this->assertSame(-3, subtract(null, 3));
     }
-
-    public function testCurriedFirstArgumentIsMinuend(): void
-    {
-        $this->assertSame(7, subtract(10)(3));
-    }
 }

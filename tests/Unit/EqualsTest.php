@@ -27,15 +27,6 @@ final class EqualsTest extends TestCase
         $this->assertFalse(equals('1.0', 1.0));
     }
 
-    public function testStringCurried(): void
-    {
-        $this->assertTrue(equals('a')('a'));
-        $this->assertFalse(equals('a')('b'));
-        $this->assertFalse(equals('a')(''));
-        $this->assertFalse(equals('1')(1));
-        $this->assertFalse(equals('1.0')(1.0));
-    }
-
     public function testInt(): void
     {
         $this->assertTrue(equals(22, 22));
@@ -142,9 +133,9 @@ final class EqualsTest extends TestCase
         $this->assertFalse(equals(NAN, 0.0));
     }
 
-    public function testCurriedComparisonsDoNotShareState(): void
+    public function testPartialApplicationsDoNotShareState(): void
     {
-        $isEmptyObject = equals(new stdClass());
+        $isEmptyObject = equals(new stdClass(), ?);
 
         $this->assertTrue($isEmptyObject(new stdClass()));
         $this->assertTrue($isEmptyObject(new stdClass()));

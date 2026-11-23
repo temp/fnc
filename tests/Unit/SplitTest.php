@@ -24,17 +24,6 @@ final class SplitTest extends TestCase
         $this->assertSame([''], $result);
     }
 
-    public function testCurriedWithZeroElements(): void
-    {
-        $data = '';
-
-        $split = split('_');
-
-        $result = $split($data);
-
-        $this->assertSame([''], $result);
-    }
-
     public function testWithOneElement(): void
     {
         $data = 'foo';
@@ -44,33 +33,11 @@ final class SplitTest extends TestCase
         $this->assertSame(['foo'], $result);
     }
 
-    public function testCurriedWithOneElement(): void
-    {
-        $data = 'foo';
-
-        $split = split('_');
-
-        $result = $split($data);
-
-        $this->assertSame(['foo'], $result);
-    }
-
     public function testWithMultipleElements(): void
     {
         $data = 'foo_bar';
 
         $result = split('_', $data);
-
-        $this->assertSame(['foo', 'bar'], $result);
-    }
-
-    public function testCurriedWithMultipleElements(): void
-    {
-        $data = 'foo_bar';
-
-        $split = split('_');
-
-        $result = $split($data);
 
         $this->assertSame(['foo', 'bar'], $result);
     }

@@ -7,8 +7,8 @@ namespace FncTests\Unit;
 use PHPUnit\Framework\Attributes\CoversFunction;
 use PHPUnit\Framework\TestCase;
 
-use function Fnc\curry2;
 use function Fnc\partition;
+use function trim;
 
 #[CoversFunction('Fnc\partition')]
 final class PartitionTest extends TestCase
@@ -32,10 +32,16 @@ final class PartitionTest extends TestCase
         $this->assertSame([[0 => 1], [1 => 'x']], partition('is_int', [1, 'x']));
     }
 
-    public function testCurriedCallbackReceivesKey(): void
+    public function testPartialApplicationReceivesKeyForPlaceholder(): void
     {
-        $isA = curry2(static fn ($v, $k) => $k === 'a');
+        $isA = (static fn ($v, $k) => $k === 'a')(?, ?);
 
         $this->assertSame([['a' => 1], ['b' => 2]], partition($isA, ['a' => 1, 'b' => 2]));
+    }
+
+    public function testPartialApplicationDoesNotReceiveKeyForOptionalParameter(): void
+    {
+        // the key 'x' must not end up as trim()'s $characters
+        $this->assertSame([['x' => 'x'], ['y' => '']], partition(trim(?, ...), ['x' => 'x', 'y' => '']));
     }
 }
