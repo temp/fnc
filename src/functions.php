@@ -48,6 +48,7 @@ use function max as phpMax;
 use function min as phpMin;
 use function spl_object_id;
 use function str_contains;
+use function str_starts_with;
 use function strlen;
 use function substr;
 use function usort;
@@ -2319,8 +2320,8 @@ function _curriedArity(Closure $fn, int|null $arity = null): int|null
 
 /**
  * Whether the callable can safely be called with $n arguments without dropping or rejecting them.
- * Internal functions only count their required parameters, so optional parameters (like trim()'s $characters)
- * don't receive unrelated values.
+ * Internal functions and partial applications (PHP 8.6, `trim(?, ...)`) only count their required parameters, so
+ * optional parameters (like trim()'s $characters) don't receive unrelated values.
  *
  * @throws RuntimeException
  */
@@ -2340,7 +2341,9 @@ function _acceptsArgs(callable $callable, int $n): bool
         return true;
     }
 
-    if ($r->isInternal()) {
+    // partial applications (PHP 8.6, e.g. trim(?, ...)) keep the optional parameters of the function they wrap,
+    // which may well be internal, so they get the same treatment
+    if ($r->isInternal() || str_starts_with($r->getName(), '{closure:pfa:')) {
         return $r->getNumberOfRequiredParameters() >= $n;
     }
 

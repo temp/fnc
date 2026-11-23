@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace FncTests\Unit;
 
+use Closure;
 use PHPUnit\Framework\Attributes\CoversFunction;
+use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\TestCase;
 
 use function Fnc\_acceptsArgs;
@@ -42,5 +44,22 @@ final class InternalAcceptsArgsTest extends TestCase
         // trim() has an optional $characters parameter that must not receive a key
         $this->assertTrue(_acceptsArgs('trim', 1));
         $this->assertFalse(_acceptsArgs('trim', 2));
+    }
+
+    #[RequiresPhp('>=8.6.0')]
+    public function testPartialApplicationCountsRequiredParametersOnly(): void
+    {
+        // trim(?, ...) keeps trim()'s optional $characters parameter, but isn't internal itself
+        $trim = self::partial('trim(?, ...)');
+
+        $this->assertTrue(_acceptsArgs($trim, 1));
+        $this->assertFalse(_acceptsArgs($trim, 2));
+    }
+
+    /** Creates the partial application at runtime, PHP < 8.6 can't parse the syntax. */
+    public static function partial(string $code): Closure
+    {
+        // phpcs:ignore Squiz.PHP.Eval.Discouraged
+        return eval('return ' . $code . ';');
     }
 }

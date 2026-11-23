@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace FncTests\Unit;
 
 use PHPUnit\Framework\Attributes\CoversFunction;
+use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\TestCase;
 
 use function Fnc\curryN;
@@ -58,5 +59,14 @@ final class ReduceTest extends TestCase
         $concat = curryN(3, static fn ($acc, $v, $k) => $acc . $k . $v);
 
         $this->assertSame('x1y2', reduce($concat, '', ['x' => 1, 'y' => 2]));
+    }
+
+    #[RequiresPhp('>=8.6.0')]
+    public function testPartialApplicationDoesNotReceiveKey(): void
+    {
+        // str_pad()'s optional $pad_string must not receive the key 'a'
+        $pad = InternalAcceptsArgsTest::partial('str_pad(?, ?, ...)');
+
+        $this->assertSame('x  ', reduce($pad, 'x', ['a' => 3]));
     }
 }
